@@ -14,20 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package modes
+package fuzzer
 
-import "k8s.io/apimachinery/pkg/util/sets"
-
-const (
-	ModeAlwaysAllow string = "AlwaysAllow"
-	ModeAlwaysDeny  string = "AlwaysDeny"
-	ModeABAC        string = "ABAC"
-	ModeWebhook     string = "Webhook"
+import (
+	runtimeserializer "k8s.io/apimachinery/pkg/runtime/serializer"
 )
 
-var AuthorizationModeChoices = []string{ModeAlwaysAllow, ModeAlwaysDeny, ModeABAC, ModeWebhook}
-
-// IsValidAuthorizationMode returns true if the given authorization mode is a valid one for the apiserver
-func IsValidAuthorizationMode(authzMode string) bool {
-	return sets.NewString(AuthorizationModeChoices...).Has(authzMode)
+// Funcs returns the fuzzer functions for the abac api group.
+var Funcs = func(codecs runtimeserializer.CodecFactory) []interface{} {
+	return []interface{}{}
 }

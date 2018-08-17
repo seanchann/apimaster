@@ -21,17 +21,13 @@ import (
 	"time"
 
 	"github.com/seanchann/apimaster/pkg/apiserver/authorizer/modes"
+
 	"k8s.io/apiserver/pkg/authorization/authorizer"
 	"k8s.io/apiserver/pkg/authorization/authorizerfactory"
 	"k8s.io/apiserver/pkg/authorization/union"
 	"k8s.io/apiserver/plugin/pkg/authorizer/webhook"
-	versionedinformers "k8s.io/client-go/informers"
-	"k8s.io/kubernetes/pkg/auth/authorizer/abac"
-	"k8s.io/kubernetes/pkg/auth/nodeidentifier"
-	informers "k8s.io/kubernetes/pkg/client/informers/informers_generated/internalversion"
-	"k8s.io/kubernetes/plugin/pkg/auth/authorizer/node"
-	"k8s.io/kubernetes/plugin/pkg/auth/authorizer/rbac"
-	"k8s.io/kubernetes/plugin/pkg/auth/authorizer/rbac/bootstrappolicy"
+
+	"github.com/seanchann/apimaster/pkg/auth/authorizer/abac"
 )
 
 type AuthorizationConfig struct {
@@ -50,9 +46,6 @@ type AuthorizationConfig struct {
 	WebhookCacheAuthorizedTTL time.Duration
 	// TTL for caching of unauthorized responses from the webhook server.
 	WebhookCacheUnauthorizedTTL time.Duration
-
-	InformerFactory          informers.SharedInformerFactory
-	VersionedInformerFactory versionedinformers.SharedInformerFactory
 }
 
 // New returns the right sort of union of multiple authorizer.Authorizer objects
@@ -70,18 +63,6 @@ func (config AuthorizationConfig) New() (authorizer.Authorizer, authorizer.RuleR
 	for _, authorizationMode := range config.AuthorizationModes {
 		// Keep cases in sync with constant list in k8s.io/kubernetes/pkg/kubeapiserver/authorizer/modes/modes.go.
 		switch authorizationMode {
-		case modes.ModeNode:
-			graph := node.NewGraph()
-			node.AddGraphEventHandlers(
-				graph,
-				config.InformerFactory.Core().InternalVersion().Nodes(),
-				config.InformerFactory.Core().InternalVersion().Pods(),
-				config.InformerFactory.Core().InternalVersion().PersistentVolumes(),
-				config.VersionedInformerFactory.Storage().V1beta1().VolumeAttachments(),
-			)
-			nodeAuthorizer := node.NewAuthorizer(graph, nodeidentifier.NewDefaultNodeIdentifier(), bootstrappolicy.NodeRules())
-			authorizers = append(authorizers, nodeAuthorizer)
-
 		case modes.ModeAlwaysAllow:
 			alwaysAllowAuthorizer := authorizerfactory.NewAlwaysAllowAuthorizer()
 			authorizers = append(authorizers, alwaysAllowAuthorizer)
@@ -106,15 +87,6 @@ func (config AuthorizationConfig) New() (authorizer.Authorizer, authorizer.RuleR
 			}
 			authorizers = append(authorizers, webhookAuthorizer)
 			ruleResolvers = append(ruleResolvers, webhookAuthorizer)
-		case modes.ModeRBAC:
-			rbacAuthorizer := rbac.New(
-				&rbac.RoleGetter{Lister: config.VersionedInformerFactory.Rbac().V1().Roles().Lister()},
-				&rbac.RoleBindingLister{Lister: config.VersionedInformerFactory.Rbac().V1().RoleBindings().Lister()},
-				&rbac.ClusterRoleGetter{Lister: config.VersionedInformerFactory.Rbac().V1().ClusterRoles().Lister()},
-				&rbac.ClusterRoleBindingLister{Lister: config.VersionedInformerFactory.Rbac().V1().ClusterRoleBindings().Lister()},
-			)
-			authorizers = append(authorizers, rbacAuthorizer)
-			ruleResolvers = append(ruleResolvers, rbacAuthorizer)
 		default:
 			return nil, nil, fmt.Errorf("unknown authorization mode %s specified", authorizationMode)
 		}

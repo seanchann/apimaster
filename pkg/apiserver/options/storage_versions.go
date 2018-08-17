@@ -20,7 +20,8 @@ import (
 	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/kubernetes/pkg/api/legacyscheme"
+
+	"github.com/seanchann/apimaster/pkg/api/legacyscheme"
 
 	"sort"
 

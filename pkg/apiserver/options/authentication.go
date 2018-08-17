@@ -18,8 +18,6 @@ package options
 
 import (
 	"fmt"
-	"net/url"
-	"strings"
 	"time"
 
 	"github.com/golang/glog"
@@ -35,15 +33,13 @@ import (
 )
 
 type BuiltInAuthenticationOptions struct {
-	Anonymous       *AnonymousAuthenticationOptions
-	BootstrapToken  *BootstrapTokenAuthenticationOptions
-	ClientCert      *genericoptions.ClientCertAuthenticationOptions
-	OIDC            *OIDCAuthenticationOptions
-	PasswordFile    *PasswordFileAuthenticationOptions
-	RequestHeader   *genericoptions.RequestHeaderAuthenticationOptions
-	ServiceAccounts *ServiceAccountAuthenticationOptions
-	TokenFile       *TokenFileAuthenticationOptions
-	WebHook         *WebHookAuthenticationOptions
+	Anonymous     *AnonymousAuthenticationOptions
+	ClientCert    *genericoptions.ClientCertAuthenticationOptions
+	OIDC          *OIDCAuthenticationOptions
+	PasswordFile  *PasswordFileAuthenticationOptions
+	RequestHeader *genericoptions.RequestHeaderAuthenticationOptions
+	TokenFile     *TokenFileAuthenticationOptions
+	WebHook       *WebHookAuthenticationOptions
 
 	TokenSuccessCacheTTL time.Duration
 	TokenFailureCacheTTL time.Duration
@@ -51,10 +47,6 @@ type BuiltInAuthenticationOptions struct {
 
 type AnonymousAuthenticationOptions struct {
 	Allow bool
-}
-
-type BootstrapTokenAuthenticationOptions struct {
-	Enable bool
 }
 
 type OIDCAuthenticationOptions struct {
@@ -71,14 +63,6 @@ type OIDCAuthenticationOptions struct {
 
 type PasswordFileAuthenticationOptions struct {
 	BasicAuthFile string
-}
-
-type ServiceAccountAuthenticationOptions struct {
-	KeyFiles      []string
-	Lookup        bool
-	Issuer        string
-	APIAudiences  []string
-	MaxExpiration time.Duration
 }
 
 type TokenFileAuthenticationOptions struct {
@@ -100,23 +84,16 @@ func NewBuiltInAuthenticationOptions() *BuiltInAuthenticationOptions {
 func (s *BuiltInAuthenticationOptions) WithAll() *BuiltInAuthenticationOptions {
 	return s.
 		WithAnonymous().
-		WithBootstrapToken().
 		WithClientCert().
 		WithOIDC().
 		WithPasswordFile().
 		WithRequestHeader().
-		WithServiceAccounts().
 		WithTokenFile().
 		WithWebHook()
 }
 
 func (s *BuiltInAuthenticationOptions) WithAnonymous() *BuiltInAuthenticationOptions {
 	s.Anonymous = &AnonymousAuthenticationOptions{Allow: true}
-	return s
-}
-
-func (s *BuiltInAuthenticationOptions) WithBootstrapToken() *BuiltInAuthenticationOptions {
-	s.BootstrapToken = &BootstrapTokenAuthenticationOptions{}
 	return s
 }
 
@@ -140,11 +117,6 @@ func (s *BuiltInAuthenticationOptions) WithRequestHeader() *BuiltInAuthenticatio
 	return s
 }
 
-func (s *BuiltInAuthenticationOptions) WithServiceAccounts() *BuiltInAuthenticationOptions {
-	s.ServiceAccounts = &ServiceAccountAuthenticationOptions{Lookup: true}
-	return s
-}
-
 func (s *BuiltInAuthenticationOptions) WithTokenFile() *BuiltInAuthenticationOptions {
 	s.TokenFile = &TokenFileAuthenticationOptions{}
 	return s
@@ -165,12 +137,6 @@ func (s *BuiltInAuthenticationOptions) Validate() []error {
 		allErrors = append(allErrors, fmt.Errorf("oidc-issuer-url and oidc-client-id should be specified together"))
 	}
 
-	if s.ServiceAccounts != nil && len(s.ServiceAccounts.Issuer) > 0 && strings.Contains(s.ServiceAccounts.Issuer, ":") {
-		if _, err := url.Parse(s.ServiceAccounts.Issuer); err != nil {
-			allErrors = append(allErrors, fmt.Errorf("service-account-issuer contained a ':' but was not a valid URL: %v", err))
-		}
-	}
-
 	return allErrors
 }
 
@@ -180,12 +146,6 @@ func (s *BuiltInAuthenticationOptions) AddFlags(fs *pflag.FlagSet) {
 			"Enables anonymous requests to the secure port of the API server. "+
 			"Requests that are not rejected by another authentication method are treated as anonymous requests. "+
 			"Anonymous requests have a username of system:anonymous, and a group name of system:unauthenticated.")
-	}
-
-	if s.BootstrapToken != nil {
-		fs.BoolVar(&s.BootstrapToken.Enable, "enable-bootstrap-token-auth", s.BootstrapToken.Enable, ""+
-			"Enable to allow secrets of type 'bootstrap.kubernetes.io/token' in the 'kube-system' "+
-			"namespace to be used for TLS bootstrapping authentication.")
 	}
 
 	if s.ClientCert != nil {
@@ -244,30 +204,6 @@ func (s *BuiltInAuthenticationOptions) AddFlags(fs *pflag.FlagSet) {
 		s.RequestHeader.AddFlags(fs)
 	}
 
-	if s.ServiceAccounts != nil {
-		fs.StringArrayVar(&s.ServiceAccounts.KeyFiles, "service-account-key-file", s.ServiceAccounts.KeyFiles, ""+
-			"File containing PEM-encoded x509 RSA or ECDSA private or public keys, used to verify "+
-			"ServiceAccount tokens. The specified file can contain multiple keys, and the flag can "+
-			"be specified multiple times with different files. If unspecified, "+
-			"--tls-private-key-file is used. Must be specified when "+
-			"--service-account-signing-key is provided")
-
-		fs.BoolVar(&s.ServiceAccounts.Lookup, "service-account-lookup", s.ServiceAccounts.Lookup,
-			"If true, validate ServiceAccount tokens exist in etcd as part of authentication.")
-
-		fs.StringVar(&s.ServiceAccounts.Issuer, "service-account-issuer", s.ServiceAccounts.Issuer, ""+
-			"Identifier of the service account token issuer. The issuer will assert this identifier "+
-			"in \"iss\" claim of issued tokens. This value is a string or URI.")
-
-		fs.StringSliceVar(&s.ServiceAccounts.APIAudiences, "service-account-api-audiences", s.ServiceAccounts.APIAudiences, ""+
-			"Identifiers of the API. The service account token authenticator will validate that "+
-			"tokens used against the API are bound to at least one of these audiences.")
-
-		fs.DurationVar(&s.ServiceAccounts.MaxExpiration, "service-account-max-token-expiration", s.ServiceAccounts.MaxExpiration, ""+
-			"The maximum validity duration of a token created by the service account token issuer. If an otherwise valid "+
-			"TokenRequest with a validity duration larger than this value is requested, a token will be issued with a validity duration of this value.")
-	}
-
 	if s.TokenFile != nil {
 		fs.StringVar(&s.TokenFile.TokenFile, "token-auth-file", s.TokenFile.TokenFile, ""+
 			"If set, the file that will be used to secure the secure port of the API server "+
@@ -294,10 +230,6 @@ func (s *BuiltInAuthenticationOptions) ToAuthenticationConfig() authenticator.Au
 		ret.Anonymous = s.Anonymous.Allow
 	}
 
-	if s.BootstrapToken != nil {
-		ret.BootstrapToken = s.BootstrapToken.Enable
-	}
-
 	if s.ClientCert != nil {
 		ret.ClientCAFile = s.ClientCert.ClientCA
 	}
@@ -320,13 +252,6 @@ func (s *BuiltInAuthenticationOptions) ToAuthenticationConfig() authenticator.Au
 
 	if s.RequestHeader != nil {
 		ret.RequestHeaderConfig = s.RequestHeader.ToAuthenticationRequestHeaderConfig()
-	}
-
-	if s.ServiceAccounts != nil {
-		ret.ServiceAccountKeyFiles = s.ServiceAccounts.KeyFiles
-		ret.ServiceAccountLookup = s.ServiceAccounts.Lookup
-		ret.ServiceAccountIssuer = s.ServiceAccounts.Issuer
-		ret.ServiceAccountAPIAudiences = s.ServiceAccounts.APIAudiences
 	}
 
 	if s.TokenFile != nil {
