@@ -25,43 +25,43 @@ import (
 	"k8s.io/apiserver/pkg/authentication/authenticatorfactory"
 	"k8s.io/apiserver/pkg/authentication/group"
 	"k8s.io/apiserver/pkg/authentication/request/anonymous"
-	"k8s.io/apiserver/pkg/authentication/request/bearertoken"
+	//"k8s.io/apiserver/pkg/authentication/request/bearertoken"
 	"k8s.io/apiserver/pkg/authentication/request/headerrequest"
 	"k8s.io/apiserver/pkg/authentication/request/union"
-	"k8s.io/apiserver/pkg/authentication/request/websocket"
+	//"k8s.io/apiserver/pkg/authentication/request/websocket"
 	"k8s.io/apiserver/pkg/authentication/request/x509"
-	tokencache "k8s.io/apiserver/pkg/authentication/token/cache"
+	//tokencache "k8s.io/apiserver/pkg/authentication/token/cache"
 	"k8s.io/apiserver/pkg/authentication/token/tokenfile"
-	tokenunion "k8s.io/apiserver/pkg/authentication/token/union"
+	//tokenunion "k8s.io/apiserver/pkg/authentication/token/union"
 	"k8s.io/apiserver/plugin/pkg/authenticator/password/passwordfile"
 	"k8s.io/apiserver/plugin/pkg/authenticator/request/basicauth"
 	"k8s.io/apiserver/plugin/pkg/authenticator/token/oidc"
 	"k8s.io/apiserver/plugin/pkg/authenticator/token/webhook"
 	certutil "k8s.io/client-go/util/cert"
-	"k8s.io/kubernetes/pkg/serviceaccount"
+	//"k8s.io/kubernetes/pkg/serviceaccount"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 type AuthenticatorConfig struct {
-	Anonymous                   bool
-	BasicAuthFile               string
-	BootstrapToken              bool
-	ClientCAFile                string
-	TokenAuthFile               string
-	OIDCIssuerURL               string
-	OIDCClientID                string
-	OIDCCAFile                  string
-	OIDCUsernameClaim           string
-	OIDCUsernamePrefix          string
-	OIDCGroupsClaim             string
-	OIDCGroupsPrefix            string
-	OIDCSigningAlgs             []string
-	OIDCRequiredClaims          map[string]string
-	ServiceAccountKeyFiles      []string
-	ServiceAccountLookup        bool
-	ServiceAccountIssuer        string
-	ServiceAccountAPIAudiences  []string
+	Anonymous          bool
+	BasicAuthFile      string
+	BootstrapToken     bool
+	ClientCAFile       string
+	TokenAuthFile      string
+	OIDCIssuerURL      string
+	OIDCClientID       string
+	OIDCCAFile         string
+	OIDCUsernameClaim  string
+	OIDCUsernamePrefix string
+	OIDCGroupsClaim    string
+	OIDCGroupsPrefix   string
+	OIDCSigningAlgs    []string
+	OIDCRequiredClaims map[string]string
+	// ServiceAccountKeyFiles      []string
+	// ServiceAccountLookup        bool
+	// ServiceAccountIssuer        string
+	// ServiceAccountAPIAudiences  []string
 	WebhookTokenAuthnConfigFile string
 	WebhookTokenAuthnCacheTTL   time.Duration
 
@@ -71,7 +71,7 @@ type AuthenticatorConfig struct {
 	RequestHeaderConfig *authenticatorfactory.RequestHeaderConfig
 
 	// TODO, this is the only non-serializable part of the entire config.  Factor it out into a clientconfig
-	ServiceAccountTokenGetter   serviceaccount.ServiceAccountTokenGetter
+	//ServiceAccountTokenGetter   serviceaccount.ServiceAccountTokenGetter
 	BootstrapTokenAuthenticator authenticator.Token
 }
 
@@ -131,13 +131,13 @@ func (config AuthenticatorConfig) New() (authenticator.Request, *spec.SecurityDe
 		}
 		tokenAuthenticators = append(tokenAuthenticators, tokenAuth)
 	}
-	if len(config.ServiceAccountKeyFiles) > 0 {
-		serviceAccountAuth, err := newLegacyServiceAccountAuthenticator(config.ServiceAccountKeyFiles, config.ServiceAccountLookup, config.ServiceAccountTokenGetter)
-		if err != nil {
-			return nil, nil, err
-		}
-		tokenAuthenticators = append(tokenAuthenticators, serviceAccountAuth)
-	}
+	// if len(config.ServiceAccountKeyFiles) > 0 {
+	// 	serviceAccountAuth, err := newLegacyServiceAccountAuthenticator(config.ServiceAccountKeyFiles, config.ServiceAccountLookup, config.ServiceAccountTokenGetter)
+	// 	if err != nil {
+	// 		return nil, nil, err
+	// 	}
+	// 	tokenAuthenticators = append(tokenAuthenticators, serviceAccountAuth)
+	// }
 	// if utilfeature.DefaultFeatureGate.Enabled(features.TokenRequest) && config.ServiceAccountIssuer != "" {
 	// 	serviceAccountAuth, err := newServiceAccountAuthenticator(config.ServiceAccountIssuer, config.ServiceAccountAPIAudiences, config.ServiceAccountKeyFiles, config.ServiceAccountTokenGetter)
 	// 	if err != nil {
@@ -172,23 +172,23 @@ func (config AuthenticatorConfig) New() (authenticator.Request, *spec.SecurityDe
 		tokenAuthenticators = append(tokenAuthenticators, webhookTokenAuth)
 	}
 
-	if len(tokenAuthenticators) > 0 {
-		// Union the token authenticators
-		tokenAuth := tokenunion.New(tokenAuthenticators...)
-		// Optionally cache authentication results
-		if config.TokenSuccessCacheTTL > 0 || config.TokenFailureCacheTTL > 0 {
-			tokenAuth = tokencache.New(tokenAuth, config.TokenSuccessCacheTTL, config.TokenFailureCacheTTL)
-		}
-		authenticators = append(authenticators, bearertoken.New(tokenAuth), websocket.NewProtocolAuthenticator(tokenAuth))
-		securityDefinitions["BearerToken"] = &spec.SecurityScheme{
-			SecuritySchemeProps: spec.SecuritySchemeProps{
-				Type:        "apiKey",
-				Name:        "authorization",
-				In:          "header",
-				Description: "Bearer Token authentication",
-			},
-		}
-	}
+	// if len(tokenAuthenticators) > 0 {
+	// 	// Union the token authenticators
+	// 	tokenAuth := tokenunion.New(tokenAuthenticators...)
+	// 	// Optionally cache authentication results
+	// 	if config.TokenSuccessCacheTTL > 0 || config.TokenFailureCacheTTL > 0 {
+	// 		tokenAuth = tokencache.New(tokenAuth, config.TokenSuccessCacheTTL, config.TokenFailureCacheTTL)
+	// 	}
+	// 	authenticators = append(authenticators, bearertoken.New(tokenAuth), websocket.NewProtocolAuthenticator(tokenAuth))
+	// 	securityDefinitions["BearerToken"] = &spec.SecurityScheme{
+	// 		SecuritySchemeProps: spec.SecuritySchemeProps{
+	// 			Type:        "apiKey",
+	// 			Name:        "authorization",
+	// 			In:          "header",
+	// 			Description: "Bearer Token authentication",
+	// 		},
+	// 	}
+	// }
 
 	if len(authenticators) == 0 {
 		if config.Anonymous {
@@ -211,10 +211,10 @@ func (config AuthenticatorConfig) New() (authenticator.Request, *spec.SecurityDe
 }
 
 // IsValidServiceAccountKeyFile returns true if a valid public RSA key can be read from the given file
-func IsValidServiceAccountKeyFile(file string) bool {
-	_, err := certutil.PublicKeysFromFile(file)
-	return err == nil
-}
+// func IsValidServiceAccountKeyFile(file string) bool {
+// 	_, err := certutil.PublicKeysFromFile(file)
+// 	return err == nil
+// }
 
 // newAuthenticatorFromBasicAuthFile returns an authenticator.Request or an error
 func newAuthenticatorFromBasicAuthFile(basicAuthFile string) (authenticator.Request, error) {
@@ -272,34 +272,34 @@ func newAuthenticatorFromOIDCIssuerURL(issuerURL, clientID, caFile, usernameClai
 }
 
 // newLegacyServiceAccountAuthenticator returns an authenticator.Token or an error
-func newLegacyServiceAccountAuthenticator(keyfiles []string, lookup bool, serviceAccountGetter serviceaccount.ServiceAccountTokenGetter) (authenticator.Token, error) {
-	allPublicKeys := []interface{}{}
-	for _, keyfile := range keyfiles {
-		publicKeys, err := certutil.PublicKeysFromFile(keyfile)
-		if err != nil {
-			return nil, err
-		}
-		allPublicKeys = append(allPublicKeys, publicKeys...)
-	}
+// func newLegacyServiceAccountAuthenticator(keyfiles []string, lookup bool, serviceAccountGetter serviceaccount.ServiceAccountTokenGetter) (authenticator.Token, error) {
+// 	allPublicKeys := []interface{}{}
+// 	for _, keyfile := range keyfiles {
+// 		publicKeys, err := certutil.PublicKeysFromFile(keyfile)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		allPublicKeys = append(allPublicKeys, publicKeys...)
+// 	}
 
-	tokenAuthenticator := serviceaccount.JWTTokenAuthenticator(serviceaccount.LegacyIssuer, allPublicKeys, serviceaccount.NewLegacyValidator(lookup, serviceAccountGetter))
-	return tokenAuthenticator, nil
-}
+// 	tokenAuthenticator := serviceaccount.JWTTokenAuthenticator(serviceaccount.LegacyIssuer, allPublicKeys, serviceaccount.NewLegacyValidator(lookup, serviceAccountGetter))
+// 	return tokenAuthenticator, nil
+// }
 
 // newServiceAccountAuthenticator returns an authenticator.Token or an error
-func newServiceAccountAuthenticator(iss string, audiences []string, keyfiles []string, serviceAccountGetter serviceaccount.ServiceAccountTokenGetter) (authenticator.Token, error) {
-	allPublicKeys := []interface{}{}
-	for _, keyfile := range keyfiles {
-		publicKeys, err := certutil.PublicKeysFromFile(keyfile)
-		if err != nil {
-			return nil, err
-		}
-		allPublicKeys = append(allPublicKeys, publicKeys...)
-	}
+// func newServiceAccountAuthenticator(iss string, audiences []string, keyfiles []string, serviceAccountGetter serviceaccount.ServiceAccountTokenGetter) (authenticator.Token, error) {
+// 	allPublicKeys := []interface{}{}
+// 	for _, keyfile := range keyfiles {
+// 		publicKeys, err := certutil.PublicKeysFromFile(keyfile)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		allPublicKeys = append(allPublicKeys, publicKeys...)
+// 	}
 
-	tokenAuthenticator := serviceaccount.JWTTokenAuthenticator(iss, allPublicKeys, serviceaccount.NewValidator(audiences, serviceAccountGetter))
-	return tokenAuthenticator, nil
-}
+// 	tokenAuthenticator := serviceaccount.JWTTokenAuthenticator(iss, allPublicKeys, serviceaccount.NewValidator(audiences, serviceAccountGetter))
+// 	return tokenAuthenticator, nil
+// }
 
 // newAuthenticatorFromClientCAFile returns an authenticator.Request or an error
 func newAuthenticatorFromClientCAFile(clientCAFile string) (authenticator.Request, error) {
