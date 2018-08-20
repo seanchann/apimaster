@@ -10,6 +10,7 @@ import (
 )
 
 //ControllerProviderConfig controller provider config
+//this call before install api
 type ControllerProviderConfig struct {
 	NewFunc         func() error
 	PostStartFunc   genericapiserver.PostStartHookFunc
@@ -76,14 +77,14 @@ func (c completedConfig) New(delegateAPIServer genericapiserver.DelegationTarget
 		GenericAPIServer: genericServer,
 	}
 
-	gm.InstallAPIs(c.ExtraConfig.APIResourceConfigSource, c.GenericConfig.RESTOptionsGetter, c.ExtraConfig.RESTStorageProviders...)
-
-	//add user config hook
+	//add user config hook first
 	if nil == c.ExtraConfig.ControllerConfig.NewFunc() {
 		controllerName := "extra-user-controller"
 		m.GenericAPIServer.AddPostStartHookOrDie(controllerName, c.ExtraConfig.ControllerConfig.PostStartFunc)
 		m.GenericAPIServer.AddPreShutdownHookOrDie(controllerName, c.ExtraConfig.ControllerConfig.PreShutdownFunc)
 	}
+
+	gm.InstallAPIs(c.ExtraConfig.APIResourceConfigSource, c.GenericConfig.RESTOptionsGetter, c.ExtraConfig.RESTStorageProviders...)
 
 	return gm, nil
 }
