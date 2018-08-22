@@ -18,6 +18,7 @@ type SwaggerDocOptions struct {
 	TypeSrc      string
 	Verify       bool
 	HeaderFile   string
+	Package      string
 }
 
 //NewSwaggerDocOptions new swagger options
@@ -31,4 +32,5 @@ func (s *SwaggerDocOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&s.TypeSrc, "type-src", "", "From where we are going to read the types")
 	fs.BoolVar(&s.Verify, "verify", false, "Verifies if the given type-src file has documentation for every type")
 	fs.StringVar(&s.HeaderFile, "header-file", "", "append your header file")
+	fs.StringVar(&s.Package, "package-name", "", "output file in what package")
 }
