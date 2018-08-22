@@ -9,12 +9,19 @@ import (
 	"k8s.io/client-go/informers"
 )
 
+//ControllerProvider new custom controller and return this
+type ControllerProvider struct {
+	PostFunc        genericapiserver.PostStartHookFunc
+	PreShutdownFunc genericapiserver.PreShutdownHookFunc
+}
+
 //ControllerProviderConfig controller provider config
 //this call before install api
 type ControllerProviderConfig struct {
-	NewFunc         func() error
-	PostStartFunc   genericapiserver.PostStartHookFunc
-	PreShutdownFunc genericapiserver.PreShutdownHookFunc
+	//NewParameters user input parameter and apimaster input parameter
+	//these all use with NewFunc
+	NewParameters []interface{}
+	NewFunc       func(para []interface{}) (*ControllerProvider, error)
 }
 
 //ExtraConfig user configure
