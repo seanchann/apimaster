@@ -80,8 +80,8 @@ func (c completedConfig) New(delegateAPIServer genericapiserver.DelegationTarget
 	//add user config hook first
 	if nil == c.ExtraConfig.ControllerConfig.NewFunc() {
 		controllerName := "extra-user-controller"
-		m.GenericAPIServer.AddPostStartHookOrDie(controllerName, c.ExtraConfig.ControllerConfig.PostStartFunc)
-		m.GenericAPIServer.AddPreShutdownHookOrDie(controllerName, c.ExtraConfig.ControllerConfig.PreShutdownFunc)
+		gm.GenericAPIServer.AddPostStartHookOrDie(controllerName, c.ExtraConfig.ControllerConfig.PostStartFunc)
+		gm.GenericAPIServer.AddPreShutdownHookOrDie(controllerName, c.ExtraConfig.ControllerConfig.PreShutdownFunc)
 	}
 
 	gm.InstallAPIs(c.ExtraConfig.APIResourceConfigSource, c.GenericConfig.RESTOptionsGetter, c.ExtraConfig.RESTStorageProviders...)
