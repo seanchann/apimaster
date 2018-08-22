@@ -13,6 +13,7 @@ package swaggerdoc
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,6 +39,16 @@ func GenerateDoc(o *options.SwaggerDocOptions) {
 		}
 		defer file.Close()
 		funcOut = file
+	}
+
+	if o.HeaderFile != "" {
+
+		b, err := ioutil.ReadFile(o.HeaderFile)
+		if err != nil {
+			glog.Fatalf("Error input header file %s\n", err)
+		}
+
+		io.WriteString(funcOut, string(b))
 	}
 
 	docsForTypes := runtime.ParseDocumentationFrom(o.TypeSrc)
