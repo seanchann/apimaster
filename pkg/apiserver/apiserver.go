@@ -11,6 +11,7 @@ import (
 
 //ControllerProvider new custom controller and return this
 type ControllerProvider struct {
+	NameFunc        func() string
 	PostFunc        genericapiserver.PostStartHookFunc
 	PreShutdownFunc genericapiserver.PreShutdownHookFunc
 }
@@ -85,10 +86,10 @@ func (c completedConfig) New(delegateAPIServer genericapiserver.DelegationTarget
 	}
 
 	//add user config hook first
-	if nil == c.ExtraConfig.ControllerConfig.NewFunc() {
-		controllerName := "extra-user-controller"
-		gm.GenericAPIServer.AddPostStartHookOrDie(controllerName, c.ExtraConfig.ControllerConfig.PostStartFunc)
-		gm.GenericAPIServer.AddPreShutdownHookOrDie(controllerName, c.ExtraConfig.ControllerConfig.PreShutdownFunc)
+	if provider, err := c.ExtraConfig.ControllerConfig.NewFunc(c.ExtraConfig.ControllerConfig.NewParameters); err != nil {
+		controllerName := provider.NameFunc()
+		gm.GenericAPIServer.AddPostStartHookOrDie(controllerName, provider.PostFunc)
+		gm.GenericAPIServer.AddPreShutdownHookOrDie(controllerName, provider.PreShutdownFunc)
 	}
 
 	gm.InstallAPIs(c.ExtraConfig.APIResourceConfigSource, c.GenericConfig.RESTOptionsGetter, c.ExtraConfig.RESTStorageProviders...)
