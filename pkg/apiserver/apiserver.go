@@ -86,10 +86,12 @@ func (c completedConfig) New(delegateAPIServer genericapiserver.DelegationTarget
 	}
 
 	//add user config hook first
-	if provider, err := c.ExtraConfig.ControllerConfig.NewFunc(c.ExtraConfig.ControllerConfig.NewParameters); err != nil {
-		controllerName := provider.NameFunc()
-		gm.GenericAPIServer.AddPostStartHookOrDie(controllerName, provider.PostFunc)
-		gm.GenericAPIServer.AddPreShutdownHookOrDie(controllerName, provider.PreShutdownFunc)
+	if c.ExtraConfig.ControllerConfig.NewFunc != nil {
+		if provider, err := c.ExtraConfig.ControllerConfig.NewFunc(c.ExtraConfig.ControllerConfig.NewParameters); err != nil {
+			controllerName := provider.NameFunc()
+			gm.GenericAPIServer.AddPostStartHookOrDie(controllerName, provider.PostFunc)
+			gm.GenericAPIServer.AddPreShutdownHookOrDie(controllerName, provider.PreShutdownFunc)
+		}
 	}
 
 	gm.InstallAPIs(c.ExtraConfig.APIResourceConfigSource, c.GenericConfig.RESTOptionsGetter, c.ExtraConfig.RESTStorageProviders...)
