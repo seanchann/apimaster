@@ -13,11 +13,11 @@ import (
 
 //MysqlOptions mysql as a backend
 type MysqlOptions struct {
-	StorageConfig *storagebackend.Config
+	StorageConfig storagebackend.Config
 }
 
 //NewMysqlOptions create  mysql options
-func (s *StorageOptions) NewMysqlOptions(backendConfig *storagebackend.Config) *MysqlOptions {
+func NewMysqlOptions(backendConfig *storagebackend.Config) *MysqlOptions {
 	mysql := &MysqlOptions{
 		StorageConfig: *backendConfig,
 	}

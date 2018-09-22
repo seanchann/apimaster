@@ -12,14 +12,14 @@ type MongoDBOptions struct {
 	StorageConfig *storagebackend.MongoExtendConfig
 }
 
-func (s *StorageOptions) NewMongoDBOptions() *MongoDBOptions {
-	mongo := &MongoDBOptions{
-		StorageConfig: &s.StorageConfig.Mongodb,
-	}
-	s.MongoDB = mongo
+// func NewMongoDBOptions() *MongoDBOptions {
+// 	mongo := &MongoDBOptions{
+// 		StorageConfig: &s.StorageConfig.Mongodb,
+// 	}
+// 	s.MongoDB = mongo
 
-	return mongo
-}
+// 	return mongo
+// }
 
 func (s *MongoDBOptions) Validate() []error {
 	allErrors := []error{}

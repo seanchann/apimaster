@@ -12,14 +12,14 @@ type DynamoDBOptions struct {
 	StorageConfig *storagebackend.AWSDynamoDBConfig
 }
 
-func (s *StorageOptions) NewDynamoDBOptions() *DynamoDBOptions {
-	dynamo := &DynamoDBOptions{
-		StorageConfig: &s.StorageConfig.AWSDynamoDB,
-	}
-	s.Dynamodb = dynamo
+// func NewDynamoDBOptions() *DynamoDBOptions {
+// 	dynamo := &DynamoDBOptions{
+// 		StorageConfig: &s.StorageConfig.AWSDynamoDB,
+// 	}
+// 	s.Dynamodb = dynamo
 
-	return dynamo
-}
+// 	return dynamo
+// }
 
 func (s *DynamoDBOptions) Validate() []error {
 	allErrors := []error{}
