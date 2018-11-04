@@ -1,3 +1,13 @@
+/*
+
+Copyright 2018 This Project Authors.
+
+Author:  seanchann <seanchann@foxmail.com>
+
+See docs/ for more information about the  project.
+
+*/
+
 package apiserver
 
 import (
@@ -27,8 +37,13 @@ type ControllerProviderConfig struct {
 
 //ExtraConfig user configure
 type ExtraConfig struct {
+	//APIServerName a name for this apiserver
+	APIServerName           string
 	APIResourceConfigSource serverstorage.APIResourceConfigSource
 	StorageFactory          serverstorage.StorageFactory
+
+	//ExtendRoutes add custom  route. will call this function to add
+	ExtendRoutesFunc func(c *restful.Container)
 
 	//RESTStorageProviders list. will be install this api.
 	RESTStorageProviders []RESTStorageProvider
@@ -76,9 +91,13 @@ func (cfg *Config) Complete(informers informers.SharedInformerFactory) Completed
 
 // New returns a new instance of WardleServer from the given config.
 func (c completedConfig) New(delegateAPIServer genericapiserver.DelegationTarget) (*APIServer, error) {
-	genericServer, err := c.GenericConfig.New("cticctrl-apiserver", genericapiserver.NewEmptyDelegate())
+	genericServer, err := c.GenericConfig.New(c.ExtraConfig.APIServerName, genericapiserver.NewEmptyDelegate())
 	if err != nil {
 		return nil, err
+	}
+
+	if c.ExtraConfig.ExtendRoutesFunc {
+		c.ExtraConfig.ExtendRoutesFunc(genericServer.Handler.GoRestfulContainer)
 	}
 
 	gm := &APIServer{
