@@ -11,6 +11,7 @@ See docs/ for more information about the  project.
 package apiserver
 
 import (
+	restful "github.com/emicklei/go-restful"
 	"github.com/golang/glog"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/apiserver/pkg/registry/generic"
@@ -96,7 +97,7 @@ func (c completedConfig) New(delegateAPIServer genericapiserver.DelegationTarget
 		return nil, err
 	}
 
-	if c.ExtraConfig.ExtendRoutesFunc {
+	if c.ExtraConfig.ExtendRoutesFunc != nil {
 		c.ExtraConfig.ExtendRoutesFunc(genericServer.Handler.GoRestfulContainer)
 	}
 
