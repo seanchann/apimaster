@@ -33,13 +33,14 @@ import (
 )
 
 type BuiltInAuthenticationOptions struct {
-	Anonymous     *AnonymousAuthenticationOptions
-	ClientCert    *genericoptions.ClientCertAuthenticationOptions
-	OIDC          *OIDCAuthenticationOptions
-	PasswordFile  *PasswordFileAuthenticationOptions
-	RequestHeader *genericoptions.RequestHeaderAuthenticationOptions
-	TokenFile     *TokenFileAuthenticationOptions
-	WebHook       *WebHookAuthenticationOptions
+	Anonymous      *AnonymousAuthenticationOptions
+	BootstrapToken *BootstrapTokenAuthenticationOptions
+	ClientCert     *genericoptions.ClientCertAuthenticationOptions
+	OIDC           *OIDCAuthenticationOptions
+	PasswordFile   *PasswordFileAuthenticationOptions
+	RequestHeader  *genericoptions.RequestHeaderAuthenticationOptions
+	TokenFile      *TokenFileAuthenticationOptions
+	WebHook        *WebHookAuthenticationOptions
 
 	TokenSuccessCacheTTL time.Duration
 	TokenFailureCacheTTL time.Duration
@@ -47,6 +48,10 @@ type BuiltInAuthenticationOptions struct {
 
 type AnonymousAuthenticationOptions struct {
 	Allow bool
+}
+
+type BootstrapTokenAuthenticationOptions struct {
+	Enable bool
 }
 
 type OIDCAuthenticationOptions struct {
@@ -84,6 +89,7 @@ func NewBuiltInAuthenticationOptions() *BuiltInAuthenticationOptions {
 func (s *BuiltInAuthenticationOptions) WithAll() *BuiltInAuthenticationOptions {
 	return s.
 		WithAnonymous().
+		WithBootstrapToken().
 		WithClientCert().
 		WithOIDC().
 		WithPasswordFile().
@@ -94,6 +100,11 @@ func (s *BuiltInAuthenticationOptions) WithAll() *BuiltInAuthenticationOptions {
 
 func (s *BuiltInAuthenticationOptions) WithAnonymous() *BuiltInAuthenticationOptions {
 	s.Anonymous = &AnonymousAuthenticationOptions{Allow: true}
+	return s
+}
+
+func (s *BuiltInAuthenticationOptions) WithBootstrapToken() *BuiltInAuthenticationOptions {
+	s.BootstrapToken = &BootstrapTokenAuthenticationOptions{}
 	return s
 }
 
@@ -146,6 +157,12 @@ func (s *BuiltInAuthenticationOptions) AddFlags(fs *pflag.FlagSet) {
 			"Enables anonymous requests to the secure port of the API server. "+
 			"Requests that are not rejected by another authentication method are treated as anonymous requests. "+
 			"Anonymous requests have a username of system:anonymous, and a group name of system:unauthenticated.")
+	}
+
+	if s.BootstrapToken != nil {
+		fs.BoolVar(&s.BootstrapToken.Enable, "enable-bootstrap-token-auth", s.BootstrapToken.Enable, ""+
+			"Enable to allow secrets of type 'bootstrap.kubernetes.io/token' in the 'kube-system' "+
+			"namespace to be used for TLS bootstrapping authentication.")
 	}
 
 	if s.ClientCert != nil {
@@ -228,6 +245,10 @@ func (s *BuiltInAuthenticationOptions) ToAuthenticationConfig() authenticator.Au
 
 	if s.Anonymous != nil {
 		ret.Anonymous = s.Anonymous.Allow
+	}
+
+	if s.BootstrapToken != nil {
+		ret.BootstrapToken = s.BootstrapToken.Enable
 	}
 
 	if s.ClientCert != nil {

@@ -25,14 +25,14 @@ import (
 	"k8s.io/apiserver/pkg/authentication/authenticatorfactory"
 	"k8s.io/apiserver/pkg/authentication/group"
 	"k8s.io/apiserver/pkg/authentication/request/anonymous"
-	//"k8s.io/apiserver/pkg/authentication/request/bearertoken"
+	"k8s.io/apiserver/pkg/authentication/request/bearertoken"
 	"k8s.io/apiserver/pkg/authentication/request/headerrequest"
 	"k8s.io/apiserver/pkg/authentication/request/union"
-	//"k8s.io/apiserver/pkg/authentication/request/websocket"
+	"k8s.io/apiserver/pkg/authentication/request/websocket"
 	"k8s.io/apiserver/pkg/authentication/request/x509"
-	//tokencache "k8s.io/apiserver/pkg/authentication/token/cache"
+	tokencache "k8s.io/apiserver/pkg/authentication/token/cache"
 	"k8s.io/apiserver/pkg/authentication/token/tokenfile"
-	//tokenunion "k8s.io/apiserver/pkg/authentication/token/union"
+	tokenunion "k8s.io/apiserver/pkg/authentication/token/union"
 	"k8s.io/apiserver/plugin/pkg/authenticator/password/passwordfile"
 	"k8s.io/apiserver/plugin/pkg/authenticator/request/basicauth"
 	"k8s.io/apiserver/plugin/pkg/authenticator/token/oidc"
@@ -172,23 +172,23 @@ func (config AuthenticatorConfig) New() (authenticator.Request, *spec.SecurityDe
 		tokenAuthenticators = append(tokenAuthenticators, webhookTokenAuth)
 	}
 
-	// if len(tokenAuthenticators) > 0 {
-	// 	// Union the token authenticators
-	// 	tokenAuth := tokenunion.New(tokenAuthenticators...)
-	// 	// Optionally cache authentication results
-	// 	if config.TokenSuccessCacheTTL > 0 || config.TokenFailureCacheTTL > 0 {
-	// 		tokenAuth = tokencache.New(tokenAuth, config.TokenSuccessCacheTTL, config.TokenFailureCacheTTL)
-	// 	}
-	// 	authenticators = append(authenticators, bearertoken.New(tokenAuth), websocket.NewProtocolAuthenticator(tokenAuth))
-	// 	securityDefinitions["BearerToken"] = &spec.SecurityScheme{
-	// 		SecuritySchemeProps: spec.SecuritySchemeProps{
-	// 			Type:        "apiKey",
-	// 			Name:        "authorization",
-	// 			In:          "header",
-	// 			Description: "Bearer Token authentication",
-	// 		},
-	// 	}
-	// }
+	if len(tokenAuthenticators) > 0 {
+		// Union the token authenticators
+		tokenAuth := tokenunion.New(tokenAuthenticators...)
+		// Optionally cache authentication results
+		if config.TokenSuccessCacheTTL > 0 || config.TokenFailureCacheTTL > 0 {
+			tokenAuth = tokencache.New(tokenAuth, config.TokenSuccessCacheTTL, config.TokenFailureCacheTTL)
+		}
+		authenticators = append(authenticators, bearertoken.New(tokenAuth), websocket.NewProtocolAuthenticator(tokenAuth))
+		securityDefinitions["BearerToken"] = &spec.SecurityScheme{
+			SecuritySchemeProps: spec.SecuritySchemeProps{
+				Type:        "apiKey",
+				Name:        "authorization",
+				In:          "header",
+				Description: "Bearer Token authentication",
+			},
+		}
+	}
 
 	if len(authenticators) == 0 {
 		if config.Anonymous {
