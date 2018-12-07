@@ -3,6 +3,7 @@ module github.com/seanchann/apimaster
 require (
 	bitbucket.org/ww/goautoneg v0.0.0-20120707110453-75cd24fc2f2c // indirect
 	github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973 // indirect
+	github.com/Azure/go-autorest v10.6.2+incompatible // indirect
 	github.com/coreos/etcd v3.2.24+incompatible // indirect
 	github.com/coreos/go-systemd v0.0.0-20181031085051-9002847aa142 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
