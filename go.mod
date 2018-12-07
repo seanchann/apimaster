@@ -45,3 +45,7 @@ require (
 	k8s.io/utils v0.0.0-20181102055113-1bd4f387aa67 // indirect
 	sigs.k8s.io/yaml v1.1.0 // indirect
 )
+
+replace (
+	k8s.io/apiserver => github.com/seanchann/apiserver v0.0.0-20181125155507-2d612e0f9460
+)
