@@ -1,9 +1,11 @@
 /*
-Copyright (c) 2018 Tinet. All rights reserved.
 
-Author: seanchann <zhouxq@ti-net.com.cn>
+Copyright 2018 This Project Authors.
 
-See docs/ for more information about this project.
+Author:  seanchann <seanchann@foxmail.com>
+
+See docs/ for more information about the  project.
+
 */
 
 package legacyscheme
