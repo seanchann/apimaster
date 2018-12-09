@@ -44,7 +44,7 @@ func (s *MysqlOptions) AddFlags(fs *pflag.FlagSet) {
 		"specify server to connented backend.eg:user:password@tcp(host:port)/dbname, comma separated.")
 
 	fs.BoolVar(&s.StorageConfig.Mysql.Debug, "mysql-debug", s.StorageConfig.Mysql.Debug, ""+
-		"enable mysql debug mode.")``
+		"enable mysql debug mode.")
 	fs.BoolVar(&s.StorageConfig.Mysql.ListDefaultLimit, "mysql-default-limit", s.StorageConfig.Mysql.ListDefaultLimit, ""+
 		"enable mysql debug mode.")
 }
