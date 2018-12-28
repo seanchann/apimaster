@@ -43,10 +43,12 @@ func (s *MysqlOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.StringSliceVar(&s.StorageConfig.Mysql.ServerList, "mysql-servers", s.StorageConfig.Mysql.ServerList, ""+
 		"specify server to connented backend.eg:user:password@tcp(host:port)/dbname, comma separated.")
 
-	fs.BoolVar(&s.StorageConfig.Mysql.Debug, "mysql-debug", s.StorageConfig.Mysql.Debug, ""+
-		"enable mysql debug mode.")
-	fs.IntVar(&s.StorageConfig.Mysql.ListDefaultLimit, "mysql-default-limit", s.StorageConfig.Mysql.ListDefaultLimit, ""+
-		"the default limit for mysql query.")
+	/*
+		fs.BoolVar(&s.StorageConfig.Mysql.Debug, "mysql-debug", s.StorageConfig.Mysql.Debug, ""+
+			"enable mysql debug mode.")
+		fs.IntVar(&s.StorageConfig.Mysql.ListDefaultLimit, "mysql-default-limit", s.StorageConfig.Mysql.ListDefaultLimit, ""+
+			"the default limit for mysql query.")
+	*/
 }
 
 //ApplyTo apply to server
