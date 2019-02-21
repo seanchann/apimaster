@@ -64,5 +64,5 @@ require (
 
 replace (
 	github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.2.0
-	k8s.io/apiserver => github.com/seanchann/apiserver v0.0.0-20181125155507-2d612e0f9460
+	k8s.io/apiserver => github.com/seanchann/apiserver v1.0.2
 )
