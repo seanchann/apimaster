@@ -13,7 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/storage"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -160,7 +160,7 @@ func (s *store) GuaranteedUpdate(ctx context.Context, key string, out runtime.Ob
 
 	err = s.getObject(meta, key, out, false)
 	if err != nil {
-		glog.Infof("not found %v", err)
+		klog.Infof("not found %v", err)
 		return err
 	}
 

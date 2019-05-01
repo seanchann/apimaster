@@ -22,7 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/storage"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 	dbmysql "github.com/jinzhu/gorm"
 	"golang.org/x/net/context"
 )
@@ -48,7 +48,7 @@ type RowResult struct {
 func New(client *dbmysql.DB, codec runtime.Codec, version string) *store {
 	versioner := APIObjectVersioner{}
 	if len(version) == 0 {
-		glog.Fatalln("need give a storage version for mysql backend")
+		klog.Fatalln("need give a storage version for mysql backend")
 	}
 	return &store{
 		client:         client,
@@ -87,7 +87,7 @@ func (s *store) Create(ctx context.Context, key string, obj, out runtime.Object)
 		rawObjField := table.freezerTag[jsonTagRawObj].structField
 		tObj.FieldByName(rawObjField).SetBytes(data)
 
-		glog.V(9).Infof("insert into %s with obj (%+v)  ", table.name, tObj)
+		klog.V(9).Infof("insert into %s with obj (%+v)  ", table.name, tObj)
 		err = s.client.Table(table.name).Create(tObj.Addr().Interface()).Error
 		if err != nil {
 			return storage.NewInternalErrorf(key, err.Error())
@@ -155,7 +155,7 @@ func (s *store) GuaranteedUpdate(ctx context.Context, key string, out runtime.Ob
 	err := s.GetResourceWithKey(ctx, key, out, false)
 	if err != nil {
 		if storage.IsNotFound(err) {
-			glog.V(9).Infof("item not found check if allow create on update(%v)\r\n", err)
+			klog.V(9).Infof("item not found check if allow create on update(%v)\r\n", err)
 			exist = false
 		} else {
 			return err
@@ -165,7 +165,7 @@ func (s *store) GuaranteedUpdate(ctx context.Context, key string, out runtime.Ob
 
 	ret, fields, err := userUpdate(out, tryUpdate)
 	if err != nil {
-		glog.V(9).Infof("user update error :%v\r\n", err)
+		klog.V(9).Infof("user update error :%v\r\n", err)
 		return storage.NewInternalErrorf("key %s error:%v", key, err.Error())
 	}
 
@@ -208,7 +208,7 @@ func (s *store) GuaranteedUpdate(ctx context.Context, key string, out runtime.Ob
 		return s.GetResourceWithKey(ctx, key, out, false)
 	}
 
-	glog.V(9).Infof("Create obj for update method, obj: %+v\r\n", ret)
+	klog.V(9).Infof("Create obj for update method, obj: %+v\r\n", ret)
 
 	return s.Create(ctx, key, ret, out)
 
@@ -320,7 +320,7 @@ func (s *store) GetResourceWithKey(ctx context.Context, key string, out runtime.
 
 	table := s.table(ctx, out)
 
-	glog.V(9).Infof("Get resource with key %s", key)
+	klog.V(9).Infof("Get resource with key %s", key)
 
 	p := storage.SelectionPredicate{}
 	resourceField := table.columnToFreezerTagKey[table.resoucekey]

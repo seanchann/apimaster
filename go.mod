@@ -8,7 +8,7 @@ require (
 	github.com/emicklei/go-restful v2.9.3+incompatible
 	github.com/erikstmartin/go-testdb v0.0.0-20160219214506-8d10e4a1bae5 // indirect
 	github.com/go-openapi/spec v0.19.0
-	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
+	k8s.io/klog v0.0.0-20160126235308-23def4e6c14b
 	github.com/gophercloud/gophercloud v0.0.0-20190418141522-bb98932a7b3a // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/jinzhu/gorm v1.9.4
@@ -20,6 +20,7 @@ require (
 	k8s.io/apiserver v0.0.0-00010101000000-000000000000
 	k8s.io/client-go v11.0.0+incompatible
 	k8s.io/component-base v0.0.0-20190424053038-9fe063da3132
+	k8s.io/kubernetes v1.14.1 // indirect
 )
 
 replace (

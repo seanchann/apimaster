@@ -11,7 +11,7 @@ import (
 
 	awsdb "github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 const (
@@ -80,7 +80,7 @@ func fieldToCondition(field string, operator string, value interface{},
 		expressionNameKey = append(expressionNameKey, name)
 		expressionAttributeNames[name] = &actualname
 
-		glog.V(9).Infof("append name:%v actualName:%v\r\n", expressionNameKey, actualname)
+		klog.V(9).Infof("append name:%v actualName:%v\r\n", expressionNameKey, actualname)
 	}
 
 	var expressionValName string
@@ -160,7 +160,7 @@ func ScanFilterWithFileds(p storage.SelectionPredicate,
 				value = v.Field
 			}
 		default:
-			glog.Errorf("not support %v", v.Operator)
+			klog.Errorf("not support %v", v.Operator)
 			continue
 		}
 
@@ -168,13 +168,13 @@ func ScanFilterWithFileds(p storage.SelectionPredicate,
 
 		condition, err := fieldToCondition(field, operator, value, expressionAttributeNames, expressionAttributeValues)
 		if err != nil {
-			glog.Errorf("convert selector(%+v) filed to condition error(%v)", p, err)
+			klog.Errorf("convert selector(%+v) filed to condition error(%v)", p, err)
 			continue
 		}
 		expression = append(expression, condition)
 	}
 
-	glog.V(9).Infof("field condition filterexpression:(%v) namemap:(%#v) valuemap:(%+v)", expression, expressionAttributeNames, expressionAttributeValues)
+	klog.V(9).Infof("field condition filterexpression:(%v) namemap:(%#v) valuemap:(%+v)", expression, expressionAttributeNames, expressionAttributeValues)
 
 	return expression
 }
@@ -213,22 +213,22 @@ func ScanFilterWithLables(p storage.SelectionPredicate,
 				value = v.Key()
 			}
 		default:
-			glog.Errorf("not support %v", v.Operator())
+			klog.Errorf("not support %v", v.Operator())
 			continue
 		}
 
 		field := fmt.Sprintf("metadata.lables.%s", v.Key())
 
-		glog.V(9).Infof("convert filed(%v) operator(%v) value(%v) into filters", field, operator, value)
+		klog.V(9).Infof("convert filed(%v) operator(%v) value(%v) into filters", field, operator, value)
 		condition, err := fieldToCondition(field, operator, value, expressionAttributeNames, expressionAttributeValues)
 		if err != nil {
-			glog.Errorf("convert selector(%+v) filed to condition error(%v)", p, err)
+			klog.Errorf("convert selector(%+v) filed to condition error(%v)", p, err)
 			continue
 		}
 		expression = append(expression, condition)
 	}
 
-	glog.V(9).Infof("lables condition filterexpression:(%v) namemap:(%#v) valuemap:(%+v)", expression, expressionAttributeNames, expressionAttributeValues)
+	klog.V(9).Infof("lables condition filterexpression:(%v) namemap:(%#v) valuemap:(%+v)", expression, expressionAttributeNames, expressionAttributeValues)
 
 	return
 }

@@ -20,7 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 func ScanRows(rows *sql.Rows, t *Table, obj runtime.Object) ([]*RowResult, error) {
@@ -46,14 +46,14 @@ func ScanRows(rows *sql.Rows, t *Table, obj runtime.Object) ([]*RowResult, error
 		err := rows.Scan(valuesPtrs...)
 
 		if err != nil {
-			glog.Errorf("scan table(%v) error %v\r\n", t.name, err)
+			klog.Errorf("scan table(%v) error %v\r\n", t.name, err)
 			return nil, err
 		}
 
 		item := &RowResult{}
 		err = t.CovertRowsToObject(item, obj, tableObj)
 		if err != nil {
-			glog.Errorf("scan table(%v) error %v\r\n", t.name, err)
+			klog.Errorf("scan table(%v) error %v\r\n", t.name, err)
 			return nil, err
 		}
 		listObj = append(listObj, item)

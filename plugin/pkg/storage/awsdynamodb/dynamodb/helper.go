@@ -9,7 +9,7 @@ import (
 
 	awsdb "github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 func BuildScanFilterAttr(objPtr runtime.Object, p storage.SelectionPredicate) (filterExpression string, expressionAttributeNames map[string]*string, expressionAttributeValues map[string]*awsdb.AttributeValue) {
@@ -44,12 +44,12 @@ func BuildScanFilterAttr(objPtr runtime.Object, p storage.SelectionPredicate) (f
 
 		filterExpression = strings.Join(filterExpressionList, "")
 
-		glog.V(9).Infof("build scan filter by selectionPredicate %+v \r\n"+
+		klog.V(9).Infof("build scan filter by selectionPredicate %+v \r\n"+
 			"result: filterExpression(%+v)  expressionAttributeNames(%+v) expressionAttributeValues(%+v)\r\n", p,
 			filterExpression, expressionAttributeNames, expressionAttributeValues)
 
 		for k, v := range expressionAttributeNames {
-			glog.V(9).Infof("got attr name k:%v,v:%v", k, *v)
+			klog.V(9).Infof("got attr name k:%v,v:%v", k, *v)
 		}
 	}
 

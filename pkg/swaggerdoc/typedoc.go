@@ -18,7 +18,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 	"github.com/seanchann/apimaster/pkg/swaggerdoc/options"
 )
 
@@ -26,7 +26,7 @@ import (
 // visit https://github.com/emicklei/go-restful-swagger12 for detail
 func GenerateDoc(o *options.SwaggerDocOptions) {
 	if o.TypeSrc == "" {
-		glog.Fatalf("Please define -s flag as it is the source file")
+		klog.Fatalf("Please define -s flag as it is the source file")
 	}
 
 	var funcOut io.Writer
@@ -35,7 +35,7 @@ func GenerateDoc(o *options.SwaggerDocOptions) {
 	} else {
 		file, err := os.Create(o.FunctionDest)
 		if err != nil {
-			glog.Fatalf("Couldn't open %v: %v", o.FunctionDest, err)
+			klog.Fatalf("Couldn't open %v: %v", o.FunctionDest, err)
 		}
 		defer file.Close()
 		funcOut = file
@@ -45,7 +45,7 @@ func GenerateDoc(o *options.SwaggerDocOptions) {
 
 		b, err := ioutil.ReadFile(o.HeaderFile)
 		if err != nil {
-			glog.Fatalf("Error input header file %s\n", err)
+			klog.Fatalf("Error input header file %s\n", err)
 		}
 
 		io.WriteString(funcOut, string(b))
@@ -55,7 +55,7 @@ func GenerateDoc(o *options.SwaggerDocOptions) {
 		packageline := fmt.Sprintf("package %s", o.Package)
 		io.WriteString(funcOut, packageline)
 	} else {
-		glog.Fatalf("Error invalid package name")
+		klog.Fatalf("Error invalid package name")
 	}
 
 	comment := `

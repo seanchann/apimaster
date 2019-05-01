@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/cache"
 	"k8s.io/apiserver/pkg/storage"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 	"github.com/jinzhu/gorm"
 )
 
@@ -262,7 +262,7 @@ func GetTable(ctx context.Context, obj runtime.Object) (*Table, error) {
 		return nil, fmt.Errorf("in %v tableTag(%v) not find rawobj field in struct or rawobj type is not a []byte", table.name, table.freezerTag)
 	}
 
-	glog.V(5).Infof("find table %+v", table)
+	klog.V(5).Infof("find table %+v", table)
 	tableCache.Add(kind, table, 24*time.Hour)
 
 	WithTable(ctx, table)
@@ -496,7 +496,7 @@ func (t *Table) Fields(dbHandle *gorm.DB, p storage.SelectionPredicate, selectio
 		case selection.In:
 			fallthrough
 		case selection.NotIn:
-			glog.Warningf("strange operator. check value in field in talbe(%v)", t.name)
+			klog.Warningf("strange operator. check value in field in talbe(%v)", t.name)
 		case selection.DoesNotExist:
 			fallthrough
 		case selection.Exists:

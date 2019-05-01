@@ -12,7 +12,7 @@ package apiserver
 
 import (
 	restful "github.com/emicklei/go-restful"
-	"github.com/golang/glog"
+	"k8s.io/klog"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/apiserver/pkg/registry/generic"
 	genericapiserver "k8s.io/apiserver/pkg/server"
@@ -132,20 +132,20 @@ func (m *APIServer) InstallAPIs(apiResourceConfigSource serverstorage.APIResourc
 	for _, restStorageBuilder := range restStorageProviders {
 		groupName := restStorageBuilder.GroupName()
 		if !apiResourceConfigSource.AnyVersionForGroupEnabled(groupName) {
-			glog.V(1).Infof("Skipping disabled API group %q.", groupName)
+			klog.V(1).Infof("Skipping disabled API group %q.", groupName)
 			continue
 		}
 		apiGroupInfo, enabled := restStorageBuilder.NewRESTStorage(apiResourceConfigSource, restOptionsGetter)
 		if !enabled {
-			glog.Warningf("Problem initializing API group %q, skipping.", groupName)
+			klog.Warningf("Problem initializing API group %q, skipping.", groupName)
 			continue
 		}
-		glog.V(1).Infof("Enabling API group %q.", groupName)
+		klog.V(1).Infof("Enabling API group %q.", groupName)
 
 		if postHookProvider, ok := restStorageBuilder.(genericapiserver.PostStartHookProvider); ok {
 			name, hook, err := postHookProvider.PostStartHook()
 			if err != nil {
-				glog.Fatalf("Error building PostStartHook: %v", err)
+				klog.Fatalf("Error building PostStartHook: %v", err)
 			}
 			m.GenericAPIServer.AddPostStartHookOrDie(name, hook)
 		}
@@ -155,7 +155,7 @@ func (m *APIServer) InstallAPIs(apiResourceConfigSource serverstorage.APIResourc
 
 	for i := range apiGroupsInfo {
 		if err := m.GenericAPIServer.InstallAPIGroup(&apiGroupsInfo[i]); err != nil {
-			glog.Fatalf("Error in registering group versions: %v", err)
+			klog.Fatalf("Error in registering group versions: %v", err)
 		}
 	}
 }

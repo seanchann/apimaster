@@ -18,7 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	awsdb "github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 var defaultTable = os.Args[0]
@@ -89,7 +89,7 @@ func convertObject(attr map[string]*awsdb.AttributeValue) (map[string]interface{
 	// }
 	err := dynamodbattribute.UnmarshalMap(attr, &obj)
 	if err != nil {
-		glog.V(5).Infof("unmarshalMap error %v\r\n", err)
+		klog.V(5).Infof("unmarshalMap error %v\r\n", err)
 		return nil, err
 	}
 

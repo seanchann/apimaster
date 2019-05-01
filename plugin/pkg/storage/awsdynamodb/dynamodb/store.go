@@ -27,7 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	awsdb "github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 const (
@@ -52,10 +52,10 @@ func New(sess *session.Session, table string, codec runtime.Codec) *store {
 	}
 	desc, err := CreateTable(db, table)
 	if err != nil {
-		glog.Fatalf("table not active, error : %v", err)
+		klog.Fatalf("table not active, error : %v", err)
 		return nil
 	}
-	glog.V(5).Infof("Got table(%v) description: %v", table, desc)
+	klog.V(5).Infof("Got table(%v) description: %v", table, desc)
 
 	return &store{
 		codec:     codec,
@@ -75,7 +75,7 @@ func (s *store) Versioner() storage.Versioner {
 }
 
 func (s *store) Create(ctx context.Context, key string, obj, out runtime.Object, ttl uint64) error {
-	glog.V(9).Infof("dynamodb create resource  %v \r\n", key)
+	klog.V(9).Infof("dynamodb create resource  %v \r\n", key)
 
 	//check item with this key if exist
 	_, err := s.queryObjByKey(key, out, true)
@@ -113,7 +113,7 @@ func (s *store) Create(ctx context.Context, key string, obj, out runtime.Object,
 }
 
 func (s *store) Delete(ctx context.Context, key string, out runtime.Object, preconditions *storage.Preconditions) error {
-	glog.V(9).Infof("dynamodb delete resource  %v \r\n", key)
+	klog.V(9).Infof("dynamodb delete resource  %v \r\n", key)
 	_, err := s.queryObjByKey(key, out, false)
 	if err != nil {
 		return err
@@ -136,7 +136,7 @@ func (s *store) Delete(ctx context.Context, key string, out runtime.Object, prec
 	if err != nil {
 		return storage.NewInternalErrorf("key %v delete error %v\r\n", err.Error())
 	}
-	glog.V(9).Infof("got result %v err %v\r\n", resp.Attributes, err)
+	klog.V(9).Infof("got result %v err %v\r\n", resp.Attributes, err)
 
 	return s.getObject(key, out, false, resp.Attributes)
 }
@@ -173,7 +173,7 @@ func (s *store) GetToList(ctx context.Context, key string, p storage.SelectionPr
 		limit := int64(perPage)
 		scanParam.Limit = &(limit)
 		requirePage = skip/perPage + 1
-		glog.V(9).Infof("require pagination limit(%v) skip(%v) perpage(%v) require page(%v)\r\n", limit, skip, perPage, requirePage)
+		klog.V(9).Infof("require pagination limit(%v) skip(%v) perpage(%v) require page(%v)\r\n", limit, skip, perPage, requirePage)
 	}
 
 	filter, expressionAttrName, expressionAttrValue := BuildScanFilterAttr(itemPtr, p)
@@ -195,7 +195,7 @@ func (s *store) GetToList(ctx context.Context, key string, p storage.SelectionPr
 	var pageNum uint64 = 0
 	err = s.dbHandler.ScanPages(scanParam, func(page *awsdb.ScanOutput, last bool) bool {
 		pageNum++
-		glog.V(9).Infof("Get page number %v require page %v\r\n", pageNum, requirePage)
+		klog.V(9).Infof("Get page number %v require page %v\r\n", pageNum, requirePage)
 		if pageNum == requirePage {
 			output = page
 			return false
@@ -209,7 +209,7 @@ func (s *store) GetToList(ctx context.Context, key string, p storage.SelectionPr
 		return storage.NewInternalErrorf("key %v, scan list  error %v", err.Error())
 	}
 
-	glog.V(9).Infof("Get query output count %+v\r\n", *output.Count)
+	klog.V(9).Infof("Get query output count %+v\r\n", *output.Count)
 
 	jsonData, cnt, err := ConvertTOJson(&output.Items)
 	if cnt == 0 {
@@ -281,7 +281,7 @@ func (s *store) GuaranteedUpdate(ctx context.Context, key string, out runtime.Ob
 // 	if err != nil {
 // 		return storage.NewInternalErrorf("key %v, update error %v\r\n", key, err.Error())
 // 	}
-// 	glog.V(5).Infof("build attr UpdateExpression: %v expressionAttributeNames:%v expressionAttributeValues:%v",
+// 	klog.V(5).Infof("build attr UpdateExpression: %v expressionAttributeNames:%v expressionAttributeValues:%v",
 // 		updateExpression, expressionAttributeNames, expressionAttributeValues)
 //
 // 	params := &awsdb.UpdateItemInput{
@@ -297,7 +297,7 @@ func (s *store) GuaranteedUpdate(ctx context.Context, key string, out runtime.Ob
 // 		ExpressionAttributeValues: expressionAttributeValues,
 // 	}
 // 	resp, err := s.dbHandler.UpdateItem(params)
-// 	glog.V(5).Infof("got result %v err %v\r\n", resp.Attributes, err)
+// 	klog.V(5).Infof("got result %v err %v\r\n", resp.Attributes, err)
 // 	if err != nil {
 // 		return storage.NewInternalErrorf("key %v update error %v\r\n", err.Error())
 // 	}
@@ -391,7 +391,7 @@ func (s *store) getObject(key string, out runtime.Object, ignoreNotFound bool, a
 	if err != nil {
 		return fmt.Errorf("marshal object(%+v) to json error:%v", firstObj, err)
 	}
-	//glog.V(9).Infof("marshal obj to json: %v\r\n", string(data))
+	//klog.V(9).Infof("marshal obj to json: %v\r\n", string(data))
 	return decode(s.codec, s.versioner, data, out)
 }
 
