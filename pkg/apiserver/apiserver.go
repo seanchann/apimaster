@@ -11,6 +11,9 @@ See docs/ for more information about the  project.
 package apiserver
 
 import (
+	"net/http"
+
+
 	restful "github.com/emicklei/go-restful"
 	"k8s.io/klog"
 	"k8s.io/apimachinery/pkg/version"
@@ -45,6 +48,8 @@ type ExtraConfig struct {
 
 	//ExtendRoutes add custom  route. will call this function to add
 	ExtendRoutesFunc func(c *restful.Container)
+
+	ProxyTransport    http.RoundTripper
 
 	//RESTStorageProviders list. will be install this api.
 	RESTStorageProviders []RESTStorageProvider
