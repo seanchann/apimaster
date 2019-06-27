@@ -29,10 +29,22 @@ import (
 // DeprecatedInsecureServingInfo *ServingInfo
 
 // BuildInsecureHandlerChain sets up the server to listen to http. Should be removed.
-func BuildInsecureHandlerChain(apiHandler http.Handler, c *server.Config) http.Handler {
+func BuildInsecureHandlerChain(apiHandler http.Handler, c *server.Config, enableAuth bool) http.Handler {
 	handler := apiHandler
+	if enableAuth {
+		handler = genericapifilters.WithAuthorization(apiHandler, c.Authorization.Authorizer, c.Serializer)
+	}
+
 	handler = genericapifilters.WithAudit(handler, c.AuditBackend, c.AuditPolicyChecker, c.LongRunningFunc)
-	handler = genericapifilters.WithAuthentication(handler, server.InsecureSuperuser{}, nil, nil)
+
+	if enableAuth {
+		failedHandler := genericapifilters.Unauthorized(c.Serializer, c.Authentication.SupportsBasicAuth)
+		failedHandler = genericapifilters.WithFailedAuthenticationAudit(failedHandler, c.AuditBackend, c.AuditPolicyChecker)
+		handler = genericapifilters.WithAuthentication(handler, c.Authentication.Authenticator, failedHandler, c.Authentication.APIAudiences)
+	} else {
+		handler = genericapifilters.WithAuthentication(handler, server.InsecureSuperuser{}, nil, nil)
+	}
+
 	handler = genericfilters.WithCORS(handler, c.CorsAllowedOriginList, nil, nil, nil, "true")
 	handler = genericfilters.WithTimeoutForNonLongRunningRequests(handler, c.LongRunningFunc, c.RequestTimeout)
 	handler = genericfilters.WithMaxInFlightLimit(handler, c.MaxRequestsInFlight, c.MaxMutatingRequestsInFlight, c.LongRunningFunc)
