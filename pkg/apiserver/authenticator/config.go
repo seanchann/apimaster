@@ -33,6 +33,7 @@ import (
 	tokencache "k8s.io/apiserver/pkg/authentication/token/cache"
 	"k8s.io/apiserver/pkg/authentication/token/tokenfile"
 	tokenunion "k8s.io/apiserver/pkg/authentication/token/union"
+	"k8s.io/apiserver/pkg/server/dynamiccertificates"
 	"k8s.io/apiserver/plugin/pkg/authenticator/password/passwordfile"
 	"k8s.io/apiserver/plugin/pkg/authenticator/request/basicauth"
 	"k8s.io/apiserver/plugin/pkg/authenticator/token/oidc"
@@ -65,6 +66,7 @@ type AuthenticatorConfig struct {
 	// ServiceAccountAPIAudiences  []string
 	APIAudiences                authenticator.Audiences
 	WebhookTokenAuthnConfigFile string
+	WebhookTokenAuthnVersion    string
 	WebhookTokenAuthnCacheTTL   time.Duration
 
 	TokenSuccessCacheTTL time.Duration
@@ -75,6 +77,10 @@ type AuthenticatorConfig struct {
 	// TODO, this is the only non-serializable part of the entire config.  Factor it out into a clientconfig
 	//ServiceAccountTokenGetter   serviceaccount.ServiceAccountTokenGetter
 	BootstrapTokenAuthenticator authenticator.Token
+	// ClientCAContentProvider are the options for verifying incoming connections using mTLS and directly assigning to users.
+	// Generally this is the CA bundle file used to authenticate client certificates
+	// If this value is nil, then mutual TLS is disabled.
+	ClientCAContentProvider dynamiccertificates.CAContentProvider
 }
 
 // New returns an authenticator.Request or an error that supports the standard
@@ -87,17 +93,14 @@ func (config AuthenticatorConfig) New() (authenticator.Request, *spec.SecurityDe
 	// front-proxy, BasicAuth methods, local first, then remote
 	// Add the front proxy authenticator if requested
 	if config.RequestHeaderConfig != nil {
-		requestHeaderAuthenticator, err := headerrequest.NewSecure(
-			config.RequestHeaderConfig.ClientCA,
+		requestHeaderAuthenticator := headerrequest.NewDynamicVerifyOptionsSecure(
+			config.RequestHeaderConfig.CAContentProvider.VerifyOptions,
 			config.RequestHeaderConfig.AllowedClientNames,
 			config.RequestHeaderConfig.UsernameHeaders,
 			config.RequestHeaderConfig.GroupHeaders,
 			config.RequestHeaderConfig.ExtraHeaderPrefixes,
 		)
-		if err != nil {
-			return nil, nil, err
-		}
-		authenticators = append(authenticators, requestHeaderAuthenticator)
+		authenticators = append(authenticators, authenticator.WrapAudienceAgnosticRequest(config.APIAudiences, requestHeaderAuthenticator))
 	}
 
 	// basic auth
@@ -117,11 +120,8 @@ func (config AuthenticatorConfig) New() (authenticator.Request, *spec.SecurityDe
 	}
 
 	// X509 methods
-	if len(config.ClientCAFile) > 0 {
-		certAuth, err := newAuthenticatorFromClientCAFile(config.ClientCAFile)
-		if err != nil {
-			return nil, nil, err
-		}
+	if config.ClientCAContentProvider != nil {
+		certAuth := x509.NewDynamic(config.ClientCAContentProvider.VerifyOptions, x509.CommonNameUserConversion)
 		authenticators = append(authenticators, certAuth)
 	}
 
@@ -167,7 +167,7 @@ func (config AuthenticatorConfig) New() (authenticator.Request, *spec.SecurityDe
 		tokenAuthenticators = append(tokenAuthenticators, oidcAuth)
 	}
 	if len(config.WebhookTokenAuthnConfigFile) > 0 {
-		webhookTokenAuth, err := newWebhookTokenAuthenticator(config.WebhookTokenAuthnConfigFile, config.WebhookTokenAuthnCacheTTL, config.APIAudiences)
+		webhookTokenAuth, err := newWebhookTokenAuthenticator(config.WebhookTokenAuthnConfigFile, config.WebhookTokenAuthnVersion, config.WebhookTokenAuthnCacheTTL, config.APIAudiences)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -316,8 +316,8 @@ func newAuthenticatorFromClientCAFile(clientCAFile string) (authenticator.Reques
 	return x509.New(opts, x509.CommonNameUserConversion), nil
 }
 
-func newWebhookTokenAuthenticator(webhookConfigFile string, ttl time.Duration, implicitAuds authenticator.Audiences) (authenticator.Token, error) {
-	webhookTokenAuthenticator, err := webhook.New(webhookConfigFile, implicitAuds)
+func newWebhookTokenAuthenticator(webhookConfigFile string, version string, ttl time.Duration, implicitAuds authenticator.Audiences) (authenticator.Token, error) {
+	webhookTokenAuthenticator, err := webhook.New(webhookConfigFile, version, implicitAuds)
 	if err != nil {
 		return nil, err
 	}
