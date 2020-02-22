@@ -25,12 +25,10 @@ import (
 
 //ControllerProvider new custom controller and return this
 type ControllerProvider struct {
-	NameFunc        func() string
-	PostFunc        genericapiserver.PostStartHookFunc
-	PreShutdownFunc genericapiserver.PreShutdownHookFunc
-
-	//impl RESTStorageProviderBuilder interface
-	RESTStorageProviderBuilder
+	NameFunc                       func() string
+	PostFunc                       genericapiserver.PostStartHookFunc
+	PreShutdownFunc                genericapiserver.PreShutdownHookFunc
+	RESTStorageProviderBuilderFunc func() RESTStorageProviderBuilder
 }
 
 //ControllerProviderConfig controller provider config
@@ -118,7 +116,10 @@ func (c completedConfig) New(delegateAPIServer genericapiserver.DelegationTarget
 			controllerName := provider.NameFunc()
 			gm.GenericAPIServer.AddPostStartHookOrDie(controllerName, provider.PostFunc)
 			gm.GenericAPIServer.AddPreShutdownHookOrDie(controllerName, provider.PreShutdownFunc)
-			c.ExtraConfig.RESTStorageProviderBuilder = provider.RESTStorageProviderBuilder
+
+			if provider.RESTStorageProviderBuilderFunc != nil {
+				c.ExtraConfig.RESTStorageProviderBuilder = provider.RESTStorageProviderBuilderFunc()
+			}
 		}
 	}
 
