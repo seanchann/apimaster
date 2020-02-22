@@ -11,16 +11,16 @@ See docs/ for more information about the  project.
 package apiserver
 
 import (
+	"fmt"
 	"net/http"
 
-
-	restful "github.com/emicklei/go-restful"
-	"k8s.io/klog"
+	"github.com/emicklei/go-restful"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/apiserver/pkg/registry/generic"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	serverstorage "k8s.io/apiserver/pkg/server/storage"
 	"k8s.io/client-go/informers"
+	"k8s.io/klog"
 )
 
 //ControllerProvider new custom controller and return this
@@ -28,6 +28,9 @@ type ControllerProvider struct {
 	NameFunc        func() string
 	PostFunc        genericapiserver.PostStartHookFunc
 	PreShutdownFunc genericapiserver.PreShutdownHookFunc
+
+	//impl RESTStorageProviderBuilder interface
+	RESTStorageProviderBuilder
 }
 
 //ControllerProviderConfig controller provider config
@@ -42,17 +45,16 @@ type ControllerProviderConfig struct {
 //ExtraConfig user configure
 type ExtraConfig struct {
 	//APIServerName a name for this apiserver
-	APIServerName           string
-	APIResourceConfigSource serverstorage.APIResourceConfigSource
-	StorageFactory          serverstorage.StorageFactory
+	APIServerName string
+	//StorageFactory serverstorage.StorageFactory
+
+	ProxyTransport http.RoundTripper
 
 	//ExtendRoutes add custom  route. will call this function to add
 	ExtendRoutesFunc func(c *restful.Container)
 
-	ProxyTransport    http.RoundTripper
-
-	//RESTStorageProviders list. will be install this api.
-	RESTStorageProviders []RESTStorageProvider
+	//RESTStorageProviderBuilder use this builder to crate RESTStorage
+	RESTStorageProviderBuilder RESTStorageProviderBuilder
 
 	//ControllerConfig config a controller
 	ControllerConfig ControllerProviderConfig
@@ -116,12 +118,25 @@ func (c completedConfig) New(delegateAPIServer genericapiserver.DelegationTarget
 			controllerName := provider.NameFunc()
 			gm.GenericAPIServer.AddPostStartHookOrDie(controllerName, provider.PostFunc)
 			gm.GenericAPIServer.AddPreShutdownHookOrDie(controllerName, provider.PreShutdownFunc)
+			c.ExtraConfig.RESTStorageProviderBuilder = provider.RESTStorageProviderBuilder
 		}
 	}
 
-	gm.InstallAPIs(c.ExtraConfig.APIResourceConfigSource, c.GenericConfig.RESTOptionsGetter, c.ExtraConfig.RESTStorageProviders...)
+	if c.ExtraConfig.RESTStorageProviderBuilder == nil {
+		return nil, fmt.Errorf("need rest storage provider builder")
+	}
+
+	restStorageProviders := c.ExtraConfig.RESTStorageProviderBuilder.NewProvider()
+	apiResourceConfigSource := c.ExtraConfig.RESTStorageProviderBuilder.BuildAPIResouceConfigSource()
+	gm.InstallAPIs(apiResourceConfigSource, c.GenericConfig.RESTOptionsGetter, restStorageProviders...)
 
 	return gm, nil
+}
+
+//RESTStorageProviderBuilder a builder that construct []RESTStorageProvider for api install
+type RESTStorageProviderBuilder interface {
+	NewProvider() []RESTStorageProvider
+	BuildAPIResouceConfigSource() serverstorage.APIResourceConfigSource
 }
 
 // RESTStorageProvider is a factory type for REST storage.
