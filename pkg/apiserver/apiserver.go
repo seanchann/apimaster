@@ -28,7 +28,7 @@ type ControllerProvider interface {
 	Name() string
 	PostFunc() genericapiserver.PostStartHookFunc
 	PreShutdownFunc() genericapiserver.PreShutdownHookFunc
-	NewRESTStorageProviderBuilder() RESTStorageProviderBuilder
+	RESTStorageProviderBuilderHandle() RESTStorageProviderBuilder
 }
 
 //ControllerProviderConfig controller provider config
@@ -117,7 +117,7 @@ func (c completedConfig) New(delegateAPIServer genericapiserver.DelegationTarget
 			gm.GenericAPIServer.AddPostStartHookOrDie(controllerName, provider.PostFunc())
 			gm.GenericAPIServer.AddPreShutdownHookOrDie(controllerName, provider.PreShutdownFunc())
 
-			c.ExtraConfig.RESTStorageProviderBuilder = provider.NewRESTStorageProviderBuilder()
+			c.ExtraConfig.RESTStorageProviderBuilder = provider.RESTStorageProviderBuilderHandle()
 		}
 	}
 
