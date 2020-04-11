@@ -24,11 +24,11 @@ import (
 )
 
 //ControllerProvider new custom controller and return this
-type ControllerProvider struct {
-	NameFunc                       func() string
-	PostFunc                       genericapiserver.PostStartHookFunc
-	PreShutdownFunc                genericapiserver.PreShutdownHookFunc
-	RESTStorageProviderBuilderFunc func() RESTStorageProviderBuilder
+type ControllerProvider interface {
+	Name() string
+	PostFunc() genericapiserver.PostStartHookFunc
+	PreShutdownFunc() genericapiserver.PreShutdownHookFunc
+	NewRESTStorageProviderBuilder() RESTStorageProviderBuilder
 }
 
 //ControllerProviderConfig controller provider config
@@ -37,7 +37,7 @@ type ControllerProviderConfig struct {
 	//NewParameters user input parameter and apimaster input parameter
 	//these all use with NewFunc
 	NewParameters []interface{}
-	NewFunc       func(para []interface{}) (*ControllerProvider, error)
+	NewFunc       func(para []interface{}) (ControllerProvider, error)
 }
 
 //ExtraConfig user configure
@@ -113,13 +113,11 @@ func (c completedConfig) New(delegateAPIServer genericapiserver.DelegationTarget
 	//add user config hook first
 	if c.ExtraConfig.ControllerConfig.NewFunc != nil {
 		if provider, err := c.ExtraConfig.ControllerConfig.NewFunc(c.ExtraConfig.ControllerConfig.NewParameters); err == nil {
-			controllerName := provider.NameFunc()
-			gm.GenericAPIServer.AddPostStartHookOrDie(controllerName, provider.PostFunc)
-			gm.GenericAPIServer.AddPreShutdownHookOrDie(controllerName, provider.PreShutdownFunc)
+			controllerName := provider.Name()
+			gm.GenericAPIServer.AddPostStartHookOrDie(controllerName, provider.PostFunc())
+			gm.GenericAPIServer.AddPreShutdownHookOrDie(controllerName, provider.PreShutdownFunc())
 
-			if provider.RESTStorageProviderBuilderFunc != nil {
-				c.ExtraConfig.RESTStorageProviderBuilder = provider.RESTStorageProviderBuilderFunc()
-			}
+			c.ExtraConfig.RESTStorageProviderBuilder = provider.NewRESTStorageProviderBuilder()
 		}
 	}
 
