@@ -17,10 +17,11 @@ limitations under the License.
 package authenticator
 
 import (
+	"errors"
 	"time"
 
-	"github.com/go-openapi/spec"
-
+	utilnet "k8s.io/apimachinery/pkg/util/net"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apiserver/pkg/authentication/authenticator"
 	"k8s.io/apiserver/pkg/authentication/authenticatorfactory"
 	"k8s.io/apiserver/pkg/authentication/group"
@@ -34,8 +35,11 @@ import (
 	"k8s.io/apiserver/pkg/authentication/token/tokenfile"
 	tokenunion "k8s.io/apiserver/pkg/authentication/token/union"
 	"k8s.io/apiserver/pkg/server/dynamiccertificates"
-	"k8s.io/apiserver/plugin/pkg/authenticator/password/passwordfile"
-	"k8s.io/apiserver/plugin/pkg/authenticator/request/basicauth"
+	"k8s.io/kube-openapi/pkg/validation/spec"
+
+	// "k8s.io/apiserver/plugin/pkg/authenticator/password/passwordfile"
+	// "k8s.io/apiserver/plugin/pkg/authenticator/request/basicauth"
+	webhookutil "k8s.io/apiserver/pkg/util/webhook"
 	"k8s.io/apiserver/plugin/pkg/authenticator/token/oidc"
 	"k8s.io/apiserver/plugin/pkg/authenticator/token/webhook"
 	certutil "k8s.io/client-go/util/cert"
@@ -47,7 +51,6 @@ import (
 
 type Config struct {
 	Anonymous          bool
-	BasicAuthFile      string
 	BootstrapToken     bool
 	ClientCAFile       string
 	TokenAuthFile      string
@@ -68,6 +71,10 @@ type Config struct {
 	WebhookTokenAuthnConfigFile string
 	WebhookTokenAuthnVersion    string
 	WebhookTokenAuthnCacheTTL   time.Duration
+	// WebhookRetryBackoff specifies the backoff parameters for the authentication webhook retry logic.
+	// This allows us to configure the sleep time at each iteration and the maximum number of retries allowed
+	// before we fail the webhook call in order to limit the fan out that ensues when the system is degraded.
+	WebhookRetryBackoff *wait.Backoff
 
 	TokenSuccessCacheTTL time.Duration
 	TokenFailureCacheTTL time.Duration
@@ -81,6 +88,9 @@ type Config struct {
 	// Generally this is the CA bundle file used to authenticate client certificates
 	// If this value is nil, then mutual TLS is disabled.
 	ClientCAContentProvider dynamiccertificates.CAContentProvider
+
+	// Optional field, custom dial function used to connect to webhook
+	CustomDial utilnet.DialFunc
 }
 
 // New returns an authenticator.Request or an error that supports the standard
@@ -103,22 +113,6 @@ func (config Config) New() (authenticator.Request, *spec.SecurityDefinitions, er
 		authenticators = append(authenticators, authenticator.WrapAudienceAgnosticRequest(config.APIAudiences, requestHeaderAuthenticator))
 	}
 
-	// basic auth
-	if len(config.BasicAuthFile) > 0 {
-		basicAuth, err := newAuthenticatorFromBasicAuthFile(config.BasicAuthFile)
-		if err != nil {
-			return nil, nil, err
-		}
-		authenticators = append(authenticators, basicAuth)
-
-		securityDefinitions["HTTPBasic"] = &spec.SecurityScheme{
-			SecuritySchemeProps: spec.SecuritySchemeProps{
-				Type:        "basic",
-				Description: "HTTP Basic authentication",
-			},
-		}
-	}
-
 	// X509 methods
 	if config.ClientCAContentProvider != nil {
 		certAuth := x509.NewDynamic(config.ClientCAContentProvider.VerifyOptions, x509.CommonNameUserConversion)
@@ -133,20 +127,7 @@ func (config Config) New() (authenticator.Request, *spec.SecurityDefinitions, er
 		}
 		tokenAuthenticators = append(tokenAuthenticators, tokenAuth)
 	}
-	// if len(config.ServiceAccountKeyFiles) > 0 {
-	// 	serviceAccountAuth, err := newLegacyServiceAccountAuthenticator(config.ServiceAccountKeyFiles, config.ServiceAccountLookup, config.ServiceAccountTokenGetter)
-	// 	if err != nil {
-	// 		return nil, nil, err
-	// 	}
-	// 	tokenAuthenticators = append(tokenAuthenticators, serviceAccountAuth)
-	// }
-	// if utilfeature.DefaultFeatureGate.Enabled(features.TokenRequest) && config.ServiceAccountIssuer != "" {
-	// 	serviceAccountAuth, err := newServiceAccountAuthenticator(config.ServiceAccountIssuer, config.ServiceAccountAPIAudiences, config.ServiceAccountKeyFiles, config.ServiceAccountTokenGetter)
-	// 	if err != nil {
-	// 		return nil, nil, err
-	// 	}
-	// 	tokenAuthenticators = append(tokenAuthenticators, serviceAccountAuth)
-	// }
+
 	if config.BootstrapToken {
 		if config.BootstrapTokenAuthenticator != nil {
 			// TODO: This can sometimes be nil because of
@@ -160,14 +141,34 @@ func (config Config) New() (authenticator.Request, *spec.SecurityDefinitions, er
 	// simply returns an error, the OpenID Connect plugin may query the provider to
 	// update the keys, causing performance hits.
 	if len(config.OIDCIssuerURL) > 0 && len(config.OIDCClientID) > 0 {
-		oidcAuth, err := newAuthenticatorFromOIDCIssuerURL(config.OIDCIssuerURL, config.OIDCClientID, config.OIDCCAFile, config.OIDCUsernameClaim, config.OIDCUsernamePrefix, config.OIDCGroupsClaim, config.OIDCGroupsPrefix, config.OIDCSigningAlgs, config.OIDCRequiredClaims)
+		// TODO(enj): wire up the Notifier and ControllerRunner bits when OIDC supports CA reload
+		var oidcCAContent oidc.CAContentProvider
+		if len(config.OIDCCAFile) != 0 {
+			var oidcCAErr error
+			oidcCAContent, oidcCAErr = dynamiccertificates.NewDynamicCAContentFromFile("oidc-authenticator", config.OIDCCAFile)
+			if oidcCAErr != nil {
+				return nil, nil, oidcCAErr
+			}
+		}
+
+		oidcAuth, err := newAuthenticatorFromOIDCIssuerURL(oidc.Options{
+			IssuerURL:            config.OIDCIssuerURL,
+			ClientID:             config.OIDCClientID,
+			CAContentProvider:    oidcCAContent,
+			UsernameClaim:        config.OIDCUsernameClaim,
+			UsernamePrefix:       config.OIDCUsernamePrefix,
+			GroupsClaim:          config.OIDCGroupsClaim,
+			GroupsPrefix:         config.OIDCGroupsPrefix,
+			SupportedSigningAlgs: config.OIDCSigningAlgs,
+			RequiredClaims:       config.OIDCRequiredClaims,
+		})
 		if err != nil {
 			return nil, nil, err
 		}
-		tokenAuthenticators = append(tokenAuthenticators, oidcAuth)
+		tokenAuthenticators = append(tokenAuthenticators, authenticator.WrapAudienceAgnosticToken(config.APIAudiences, oidcAuth))
 	}
 	if len(config.WebhookTokenAuthnConfigFile) > 0 {
-		webhookTokenAuth, err := newWebhookTokenAuthenticator(config.WebhookTokenAuthnConfigFile, config.WebhookTokenAuthnVersion, config.WebhookTokenAuthnCacheTTL, config.APIAudiences)
+		webhookTokenAuth, err := newWebhookTokenAuthenticator(config)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -212,22 +213,6 @@ func (config Config) New() (authenticator.Request, *spec.SecurityDefinitions, er
 	return authenticator, &securityDefinitions, nil
 }
 
-// IsValidServiceAccountKeyFile returns true if a valid public RSA key can be read from the given file
-// func IsValidServiceAccountKeyFile(file string) bool {
-// 	_, err := certutil.PublicKeysFromFile(file)
-// 	return err == nil
-// }
-
-// newAuthenticatorFromBasicAuthFile returns an authenticator.Request or an error
-func newAuthenticatorFromBasicAuthFile(basicAuthFile string) (authenticator.Request, error) {
-	basicAuthenticator, err := passwordfile.NewCSV(basicAuthFile)
-	if err != nil {
-		return nil, err
-	}
-
-	return basicauth.New(basicAuthenticator), nil
-}
-
 // newAuthenticatorFromTokenFile returns an authenticator.Token or an error
 func newAuthenticatorFromTokenFile(tokenAuthFile string) (authenticator.Token, error) {
 	tokenAuthenticator, err := tokenfile.NewCSV(tokenAuthFile)
@@ -237,71 +222,6 @@ func newAuthenticatorFromTokenFile(tokenAuthFile string) (authenticator.Token, e
 
 	return tokenAuthenticator, nil
 }
-
-// newAuthenticatorFromOIDCIssuerURL returns an authenticator.Token or an error.
-func newAuthenticatorFromOIDCIssuerURL(issuerURL, clientID, caFile, usernameClaim, usernamePrefix, groupsClaim, groupsPrefix string, signingAlgs []string, requiredClaims map[string]string) (authenticator.Token, error) {
-	const noUsernamePrefix = "-"
-
-	if usernamePrefix == "" && usernameClaim != "email" {
-		// Old behavior. If a usernamePrefix isn't provided, prefix all claims other than "email"
-		// with the issuerURL.
-		//
-		// See https://github.com/kubernetes/kubernetes/issues/31380
-		usernamePrefix = issuerURL + "#"
-	}
-
-	if usernamePrefix == noUsernamePrefix {
-		// Special value indicating usernames shouldn't be prefixed.
-		usernamePrefix = ""
-	}
-
-	tokenAuthenticator, err := oidc.New(oidc.Options{
-		IssuerURL:            issuerURL,
-		ClientID:             clientID,
-		CAFile:               caFile,
-		UsernameClaim:        usernameClaim,
-		UsernamePrefix:       usernamePrefix,
-		GroupsClaim:          groupsClaim,
-		GroupsPrefix:         groupsPrefix,
-		SupportedSigningAlgs: signingAlgs,
-		RequiredClaims:       requiredClaims,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return tokenAuthenticator, nil
-}
-
-// newLegacyServiceAccountAuthenticator returns an authenticator.Token or an error
-// func newLegacyServiceAccountAuthenticator(keyfiles []string, lookup bool, serviceAccountGetter serviceaccount.ServiceAccountTokenGetter) (authenticator.Token, error) {
-// 	allPublicKeys := []interface{}{}
-// 	for _, keyfile := range keyfiles {
-// 		publicKeys, err := certutil.PublicKeysFromFile(keyfile)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 		allPublicKeys = append(allPublicKeys, publicKeys...)
-// 	}
-
-// 	tokenAuthenticator := serviceaccount.JWTTokenAuthenticator(serviceaccount.LegacyIssuer, allPublicKeys, serviceaccount.NewLegacyValidator(lookup, serviceAccountGetter))
-// 	return tokenAuthenticator, nil
-// }
-
-// newServiceAccountAuthenticator returns an authenticator.Token or an error
-// func newServiceAccountAuthenticator(iss string, audiences []string, keyfiles []string, serviceAccountGetter serviceaccount.ServiceAccountTokenGetter) (authenticator.Token, error) {
-// 	allPublicKeys := []interface{}{}
-// 	for _, keyfile := range keyfiles {
-// 		publicKeys, err := certutil.PublicKeysFromFile(keyfile)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 		allPublicKeys = append(allPublicKeys, publicKeys...)
-// 	}
-
-// 	tokenAuthenticator := serviceaccount.JWTTokenAuthenticator(iss, allPublicKeys, serviceaccount.NewValidator(audiences, serviceAccountGetter))
-// 	return tokenAuthenticator, nil
-// }
 
 // newAuthenticatorFromClientCAFile returns an authenticator.Request or an error
 func newAuthenticatorFromClientCAFile(clientCAFile string) (authenticator.Request, error) {
@@ -316,11 +236,42 @@ func newAuthenticatorFromClientCAFile(clientCAFile string) (authenticator.Reques
 	return x509.New(opts, x509.CommonNameUserConversion), nil
 }
 
-func newWebhookTokenAuthenticator(webhookConfigFile string, version string, ttl time.Duration, implicitAuds authenticator.Audiences) (authenticator.Token, error) {
-	webhookTokenAuthenticator, err := webhook.New(webhookConfigFile, version, implicitAuds)
+func newWebhookTokenAuthenticator(config Config) (authenticator.Token, error) {
+	if config.WebhookRetryBackoff == nil {
+		return nil, errors.New("retry backoff parameters for authentication webhook has not been specified")
+	}
+
+	clientConfig, err := webhookutil.LoadKubeconfig(config.WebhookTokenAuthnConfigFile, config.CustomDial)
+	if err != nil {
+		return nil, err
+	}
+	webhookTokenAuthenticator, err := webhook.New(clientConfig, config.WebhookTokenAuthnVersion, config.APIAudiences, *config.WebhookRetryBackoff)
+	if err != nil {
+		return nil, err
+	}
+}
+
+// newAuthenticatorFromOIDCIssuerURL returns an authenticator.Token or an error.
+func newAuthenticatorFromOIDCIssuerURL(opts oidc.Options) (authenticator.Token, error) {
+	const noUsernamePrefix = "-"
+
+	if opts.UsernamePrefix == "" && opts.UsernameClaim != "email" {
+		// Old behavior. If a usernamePrefix isn't provided, prefix all claims other than "email"
+		// with the issuerURL.
+		//
+		// See https://github.com/kubernetes/kubernetes/issues/31380
+		opts.UsernamePrefix = opts.IssuerURL + "#"
+	}
+
+	if opts.UsernamePrefix == noUsernamePrefix {
+		// Special value indicating usernames shouldn't be prefixed.
+		opts.UsernamePrefix = ""
+	}
+
+	tokenAuthenticator, err := oidc.New(opts)
 	if err != nil {
 		return nil, err
 	}
 
-	return tokencache.New(webhookTokenAuthenticator, false, ttl, ttl), nil
+	return tokenAuthenticator, nil
 }
