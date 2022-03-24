@@ -17,9 +17,10 @@ limitations under the License.
 package latest
 
 import (
-	_ "github.com/seanchann/apimaster/pkg/apis/abac"
-	_ "github.com/seanchann/apimaster/pkg/apis/abac/v0"
-	_ "github.com/seanchann/apimaster/pkg/apis/abac/v1beta1"
+	//Init the abac api package
+	_ "k8s.io/kubernetes/pkg/apis/abac"
+	_ "k8s.io/kubernetes/pkg/apis/abac/v0"
+	_ "k8s.io/kubernetes/pkg/apis/abac/v1beta1"
 )
 
 // TODO: this file is totally wrong, it should look like other latest files.

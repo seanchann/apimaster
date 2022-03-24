@@ -39,7 +39,7 @@ import (
 
 	// "k8s.io/apiserver/plugin/pkg/authenticator/password/passwordfile"
 	// "k8s.io/apiserver/plugin/pkg/authenticator/request/basicauth"
-	webhookutil "k8s.io/apiserver/pkg/util/webhook"
+
 	"k8s.io/apiserver/plugin/pkg/authenticator/token/oidc"
 	"k8s.io/apiserver/plugin/pkg/authenticator/token/webhook"
 	certutil "k8s.io/client-go/util/cert"
@@ -236,19 +236,32 @@ func newAuthenticatorFromClientCAFile(clientCAFile string) (authenticator.Reques
 	return x509.New(opts, x509.CommonNameUserConversion), nil
 }
 
+// func newWebhookTokenAuthenticator(config Config) (authenticator.Token, error) {
+// 	if config.WebhookRetryBackoff == nil {
+// 		return nil, errors.New("retry backoff parameters for authentication webhook has not been specified")
+// 	}
+
+// 	clientConfig, err := webhookutil.LoadKubeconfig(config.WebhookTokenAuthnConfigFile, config.CustomDial)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	webhookTokenAuthenticator, err := webhook.New(clientConfig, config.WebhookTokenAuthnVersion, config.APIAudiences, *config.WebhookRetryBackoff)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// }
+
 func newWebhookTokenAuthenticator(config Config) (authenticator.Token, error) {
 	if config.WebhookRetryBackoff == nil {
 		return nil, errors.New("retry backoff parameters for authentication webhook has not been specified")
 	}
 
-	clientConfig, err := webhookutil.LoadKubeconfig(config.WebhookTokenAuthnConfigFile, config.CustomDial)
+	webhookTokenAuthenticator, err := webhook.New(config.WebhookTokenAuthnConfigFile, config.WebhookTokenAuthnVersion, config.APIAudiences, *config.WebhookRetryBackoff, config.CustomDial)
 	if err != nil {
 		return nil, err
 	}
-	webhookTokenAuthenticator, err := webhook.New(clientConfig, config.WebhookTokenAuthnVersion, config.APIAudiences, *config.WebhookRetryBackoff)
-	if err != nil {
-		return nil, err
-	}
+
+	return tokencache.New(webhookTokenAuthenticator, false, config.WebhookTokenAuthnCacheTTL, config.WebhookTokenAuthnCacheTTL), nil
 }
 
 // newAuthenticatorFromOIDCIssuerURL returns an authenticator.Token or an error.
