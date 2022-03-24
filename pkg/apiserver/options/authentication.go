@@ -304,32 +304,27 @@ func (s *BuiltInAuthenticationOptions) ToAuthenticationConfig() (kubeauthenticat
 	return ret, nil
 }
 
-func (o *BuiltInAuthenticationOptions) ApplyTo(c *genericapiserver.Config) error {
+func (o *BuiltInAuthenticationOptions) ApplyTo(authInfo *genericapiserver.AuthenticationInfo,
+	secureServing *genericapiserver.SecureServingInfo) error {
 	if o == nil {
 		return nil
 	}
 
-	if o.ClientCert != nil {
-		clientCertificateCAContentProvider, err := o.ClientCert.GetClientCAContentProvider()
-		if err != nil {
-			return fmt.Errorf("unable to load client CA file: %v", err)
-		}
-		if err = c.Authentication.ApplyClientCert(clientCertificateCAContentProvider, c.SecureServing); err != nil {
+	authenticatorConfig, err := o.ToAuthenticationConfig()
+	if err != nil {
+		return err
+	}
+
+	if authenticatorConfig.ClientCAContentProvider != nil {
+		if err = authInfo.ApplyClientCert(authenticatorConfig.ClientCAContentProvider, secureServing); err != nil {
 			return fmt.Errorf("unable to load client CA file: %v", err)
 		}
 	}
-
-	if o.RequestHeader != nil {
-		requestHeaderConfig, err := o.RequestHeader.ToAuthenticationRequestHeaderConfig()
-		if err != nil {
-			return fmt.Errorf("unable to create request header authentication config: %v", err)
-		}
-		if err = c.Authentication.ApplyClientCert(requestHeaderConfig.CAContentProvider, c.SecureServing); err != nil {
+	if authenticatorConfig.RequestHeaderConfig != nil && authenticatorConfig.RequestHeaderConfig.CAContentProvider != nil {
+		if err = authInfo.ApplyClientCert(authenticatorConfig.RequestHeaderConfig.CAContentProvider, secureServing); err != nil {
 			return fmt.Errorf("unable to load client CA file: %v", err)
 		}
 	}
-
-	c.Authentication.SupportsBasicAuth = o.PasswordFile != nil && len(o.PasswordFile.BasicAuthFile) > 0
 
 	return nil
 }

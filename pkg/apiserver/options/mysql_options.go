@@ -72,7 +72,9 @@ type SimpleRestOptionsFactory struct {
 //GetRESTOptions impl generic.RESTOptions
 func (f *SimpleRestOptionsFactory) GetRESTOptions(resource schema.GroupResource) (generic.RESTOptions, error) {
 	ret := generic.RESTOptions{
-		StorageConfig:           &f.Options.StorageConfig,
+		StorageConfig: &storagebackend.ConfigForResource{
+			Config: f.Options.StorageConfig,
+		},
 		Decorator:               generic.UndecoratedStorage,
 		EnableGarbageCollection: false,
 		DeleteCollectionWorkers: 0,
