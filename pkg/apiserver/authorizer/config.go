@@ -17,17 +17,18 @@ limitations under the License.
 package authorizer
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/seanchann/apimaster/pkg/apiserver/authorizer/modes"
-
+	"github.com/seanchann/apimaster/pkg/auth/authorizer/abac"
+	utilnet "k8s.io/apimachinery/pkg/util/net"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
 	"k8s.io/apiserver/pkg/authorization/authorizerfactory"
 	"k8s.io/apiserver/pkg/authorization/union"
 	"k8s.io/apiserver/plugin/pkg/authorizer/webhook"
-
-	"github.com/seanchann/apimaster/pkg/auth/authorizer/abac"
 )
 
 type AuthorizationConfig struct {
@@ -48,6 +49,13 @@ type AuthorizationConfig struct {
 	WebhookCacheAuthorizedTTL time.Duration
 	// TTL for caching of unauthorized responses from the webhook server.
 	WebhookCacheUnauthorizedTTL time.Duration
+	// WebhookRetryBackoff specifies the backoff parameters for the authorization webhook retry logic.
+	// This allows us to configure the sleep time at each iteration and the maximum number of retries allowed
+	// before we fail the webhook call in order to limit the fan out that ensues when the system is degraded.
+	WebhookRetryBackoff *wait.Backoff
+
+	// Optional field, custom dial function used to connect to webhook
+	CustomDial utilnet.DialFunc
 }
 
 // New returns the right sort of union of multiple authorizer.Authorizer objects
@@ -81,10 +89,15 @@ func (config AuthorizationConfig) New() (authorizer.Authorizer, authorizer.RuleR
 			authorizers = append(authorizers, abacAuthorizer)
 			ruleResolvers = append(ruleResolvers, abacAuthorizer)
 		case modes.ModeWebhook:
+			if config.WebhookRetryBackoff == nil {
+				return nil, nil, errors.New("retry backoff parameters for authorization webhook has not been specified")
+			}
 			webhookAuthorizer, err := webhook.New(config.WebhookConfigFile,
 				config.WebhookVersion,
 				config.WebhookCacheAuthorizedTTL,
-				config.WebhookCacheUnauthorizedTTL)
+				config.WebhookCacheUnauthorizedTTL,
+				*config.WebhookRetryBackoff,
+				config.CustomDial)
 			if err != nil {
 				return nil, nil, err
 			}
