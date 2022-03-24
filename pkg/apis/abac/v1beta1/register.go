@@ -17,10 +17,10 @@ limitations under the License.
 package v1beta1
 
 import (
+	"github.com/seanchann/apimaster/pkg/apis/abac"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/kubernetes/pkg/apis/abac"
 )
 
 // GroupName is the group name use in this package

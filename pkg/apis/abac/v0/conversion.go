@@ -17,8 +17,8 @@ limitations under the License.
 package v0
 
 import (
+	"github.com/seanchann/apimaster/pkg/apis/abac"
 	"k8s.io/apimachinery/pkg/conversion"
-	"k8s.io/kubernetes/pkg/apis/abac"
 )
 
 // allAuthenticated matches k8s.io/apiserver/pkg/authentication/user.AllAuthenticated,
