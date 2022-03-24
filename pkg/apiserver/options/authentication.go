@@ -92,7 +92,6 @@ func (s *BuiltInAuthenticationOptions) WithAll() *BuiltInAuthenticationOptions {
 		WithBootstrapToken().
 		WithClientCert().
 		WithOIDC().
-		WithPasswordFile().
 		WithRequestHeader().
 		WithTokenFile().
 		WithWebHook()
@@ -115,11 +114,6 @@ func (s *BuiltInAuthenticationOptions) WithClientCert() *BuiltInAuthenticationOp
 
 func (s *BuiltInAuthenticationOptions) WithOIDC() *BuiltInAuthenticationOptions {
 	s.OIDC = &OIDCAuthenticationOptions{}
-	return s
-}
-
-func (s *BuiltInAuthenticationOptions) WithPasswordFile() *BuiltInAuthenticationOptions {
-	s.PasswordFile = &PasswordFileAuthenticationOptions{}
 	return s
 }
 
@@ -211,12 +205,6 @@ func (s *BuiltInAuthenticationOptions) AddFlags(fs *pflag.FlagSet) {
 			"Repeat this flag to specify multiple claims.")
 	}
 
-	if s.PasswordFile != nil {
-		fs.StringVar(&s.PasswordFile.BasicAuthFile, "basic-auth-file", s.PasswordFile.BasicAuthFile, ""+
-			"If set, the file that will be used to admit requests to the secure port of the API server "+
-			"via http basic authentication.")
-	}
-
 	if s.RequestHeader != nil {
 		s.RequestHeader.AddFlags(fs)
 	}
@@ -269,10 +257,6 @@ func (s *BuiltInAuthenticationOptions) ToAuthenticationConfig() (kubeauthenticat
 		ret.OIDCUsernamePrefix = s.OIDC.UsernamePrefix
 		ret.OIDCSigningAlgs = s.OIDC.SigningAlgs
 		ret.OIDCRequiredClaims = s.OIDC.RequiredClaims
-	}
-
-	if s.PasswordFile != nil {
-		ret.BasicAuthFile = s.PasswordFile.BasicAuthFile
 	}
 
 	if s.RequestHeader != nil {
