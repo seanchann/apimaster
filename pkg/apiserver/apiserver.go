@@ -1,12 +1,13 @@
-/*
-
-Copyright 2018 This Project Authors.
-
-Author:  seanchann <seanchann@foxmail.com>
-
-See docs/ for more information about the  project.
-
-*/
+/********************************************************************
+* Copyright (c) 2008 - 2024. seanchann <seanchann.zhou@gmail.com>
+* All rights reserved.
+*
+* PROPRIETARY RIGHTS of the following material in either
+* electronic or paper format pertain to sean.
+* All manufacturing, reproduction, use, and sales involved with
+* this subject MUST conform to the license agreement signed
+* with sean.
+*******************************************************************/
 
 package apiserver
 
@@ -14,7 +15,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/apiserver/pkg/registry/generic"
 	genericapiserver "k8s.io/apiserver/pkg/server"
@@ -23,7 +24,7 @@ import (
 	"k8s.io/klog"
 )
 
-//ControllerProvider new custom controller and return this
+// ControllerProvider new custom controller and return this
 type ControllerProvider interface {
 	Name() string
 	PostFunc() genericapiserver.PostStartHookFunc
@@ -31,8 +32,8 @@ type ControllerProvider interface {
 	RESTStorageProviderBuilderHandle() RESTStorageProviderBuilder
 }
 
-//ControllerProviderConfig controller provider config
-//this call before install api
+// ControllerProviderConfig controller provider config
+// this call before install api
 type ControllerProviderConfig struct {
 	//NewParameters user input parameter and apimaster input parameter
 	//these all use with NewFunc
@@ -40,7 +41,7 @@ type ControllerProviderConfig struct {
 	NewFunc       func(para []interface{}) (ControllerProvider, error)
 }
 
-//ExtraConfig user configure
+// ExtraConfig user configure
 type ExtraConfig struct {
 	//APIServerName a name for this apiserver
 	APIServerName string
@@ -58,7 +59,7 @@ type ExtraConfig struct {
 	ControllerConfig ControllerProviderConfig
 }
 
-//Config master config
+// Config master config
 type Config struct {
 	GenericConfig *genericapiserver.Config
 	ExtraConfig   ExtraConfig
@@ -69,7 +70,7 @@ type completedConfig struct {
 	ExtraConfig   *ExtraConfig
 }
 
-//CompletedConfig complete config
+// CompletedConfig complete config
 type CompletedConfig struct {
 	// Embed a private pointer that cannot be instantiated outside of this package.
 	*completedConfig
@@ -132,7 +133,7 @@ func (c completedConfig) New(delegateAPIServer genericapiserver.DelegationTarget
 	return gm, nil
 }
 
-//RESTStorageProviderBuilder a builder that construct []RESTStorageProvider for api install
+// RESTStorageProviderBuilder a builder that construct []RESTStorageProvider for api install
 type RESTStorageProviderBuilder interface {
 	NewProvider() []RESTStorageProvider
 	BuildAPIResouceConfigSource() serverstorage.APIResourceConfigSource
@@ -141,7 +142,7 @@ type RESTStorageProviderBuilder interface {
 // RESTStorageProvider is a factory type for REST storage.
 type RESTStorageProvider interface {
 	GroupName() string
-	NewRESTStorage(apiResourceConfigSource serverstorage.APIResourceConfigSource, restOptionsGetter generic.RESTOptionsGetter) (genericapiserver.APIGroupInfo, bool)
+	NewRESTStorage(apiResourceConfigSource serverstorage.APIResourceConfigSource, restOptionsGetter generic.RESTOptionsGetter) (genericapiserver.APIGroupInfo, error)
 }
 
 // InstallAPIs will install the APIs for the restStorageProviders if they are enabled.
@@ -150,12 +151,12 @@ func (m *APIServer) InstallAPIs(apiResourceConfigSource serverstorage.APIResourc
 
 	for _, restStorageBuilder := range restStorageProviders {
 		groupName := restStorageBuilder.GroupName()
-		if !apiResourceConfigSource.AnyVersionForGroupEnabled(groupName) {
+		if !apiResourceConfigSource.AnyResourceForGroupEnabled(groupName) {
 			klog.V(1).Infof("Skipping disabled API group %q.", groupName)
 			continue
 		}
-		apiGroupInfo, enabled := restStorageBuilder.NewRESTStorage(apiResourceConfigSource, restOptionsGetter)
-		if !enabled {
+		apiGroupInfo, err := restStorageBuilder.NewRESTStorage(apiResourceConfigSource, restOptionsGetter)
+		if err != nil {
 			klog.Warningf("Problem initializing API group %q, skipping.", groupName)
 			continue
 		}

@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors.
+Copyright 2014 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,5 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package authorizer contains implementations for pkg/auth/authorizer interfaces
-package authorizer // import "github.com/seanchann/apimaster/plugin/pkg/auth/authorizer"
+// Package auth contains implementations for interfaces in the pkg/auth package
+package auth // import "github.com/seanchann/apimaster/plugin/pkg/auth"
