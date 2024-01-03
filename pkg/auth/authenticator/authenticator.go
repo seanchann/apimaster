@@ -12,6 +12,8 @@
 package authenticator
 
 import (
+	"fmt"
+
 	"github.com/emicklei/go-restful/v3"
 	"github.com/seanchann/apimaster/pkg/auth"
 	"github.com/seanchann/apimaster/pkg/auth/authenticator/internal/jwt"
@@ -46,10 +48,10 @@ func (la LoginAuth) InstallLoginAndJWTWebHook(ws *restful.WebService, authUserHa
 // LoginCheck 登录检测
 func (la *LoginAuth) LoginCheck(username, namespace, password string) (token string, err error) {
 
-	identityUser, err := la.authUserHandle.GetUserInfo(username, namespace)
+	identityUser, err := la.authUserHandle.GetUserInfo(username, namespace, password)
 	if err != nil {
 		logger.Logf(logger.ErrorLevel, "get user failed, err:%v", err)
-		return "", err
+		return "", fmt.Errorf("Authentication failed. user or password invalid")
 	}
 
 	return la.jwtAuth.GenerateToken(username, namespace, identityUser.Groups)

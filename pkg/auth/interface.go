@@ -17,7 +17,7 @@ import (
 )
 
 type AuthenticationUser interface {
-	GetUserInfo(username, namespace string) (*user.DefaultInfo, error)
+	GetUserInfo(username, namespace, password string) (*user.DefaultInfo, error)
 }
 
 type APIAuthenticator interface {
