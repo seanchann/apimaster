@@ -45,6 +45,8 @@ const (
 	authorizationWebhookVersionFlag         = "authorization-webhook-version"
 	authorizationWebhookAuthorizedTTLFlag   = "authorization-webhook-cache-authorized-ttl"
 	authorizationWebhookUnauthorizedTTLFlag = "authorization-webhook-cache-unauthorized-ttl"
+	authorizationWebhookHost                = "authorization-webhook-host"
+	authorizationWebhookAPIPath             = "authorization-webhook-apipath"
 	authorizationPolicyFileFlag             = "authorization-policy-file"
 	authorizationConfigFlag                 = "authorization-config"
 )
@@ -65,6 +67,10 @@ type BuiltInAuthorizationOptions struct {
 	// before we fail the webhook call in order to limit the fan out that ensues when the system is degraded.
 	WebhookRetryBackoff *wait.Backoff
 
+	//Append webhook path to the webhook URL
+	WebhookHost    string
+	WebhookAPIPath string
+
 	// AuthorizationConfigurationFile is mutually exclusive with all of:
 	//	- Modes
 	//	- WebhookConfigFile
@@ -84,6 +90,7 @@ func NewBuiltInAuthorizationOptions() *BuiltInAuthorizationOptions {
 		WebhookCacheAuthorizedTTL:   5 * time.Minute,
 		WebhookCacheUnauthorizedTTL: 30 * time.Second,
 		WebhookRetryBackoff:         genericoptions.DefaultAuthWebhookRetryBackoff(),
+		WebhookAPIPath:              "/apis/auth/authorization",
 	}
 }
 
@@ -213,6 +220,12 @@ func (o *BuiltInAuthorizationOptions) AddFlags(fs *pflag.FlagSet) {
 		authorizationWebhookUnauthorizedTTLFlag, o.WebhookCacheUnauthorizedTTL,
 		"The duration to cache 'unauthorized' responses from the webhook authorizer.")
 
+	fs.StringVar(&o.WebhookHost, authorizationWebhookHost, o.WebhookHost, ""+
+		"webhook host. eg:127.0.0.1:8443")
+
+	fs.StringVar(&o.WebhookAPIPath, authorizationWebhookAPIPath, o.WebhookAPIPath, ""+
+		"webhook api path. eg: /api/auth/authorization")
+
 	fs.StringVar(&o.AuthorizationConfigurationFile, authorizationConfigFlag, o.AuthorizationConfigurationFile, ""+
 		"File with Authorization Configuration to configure the authorizer chain."+
 		"Note: This feature is in Alpha since v1.29."+
@@ -284,6 +297,8 @@ func (o *BuiltInAuthorizationOptions) ToAuthorizationConfig() (*authorizer.Confi
 	return &authorizer.Config{
 		PolicyFile:          o.PolicyFile,
 		WebhookRetryBackoff: o.WebhookRetryBackoff,
+		WebhookHost:         o.WebhookHost,
+		WebhookAPIPath:      o.WebhookAPIPath,
 
 		AuthorizationConfiguration: authorizationConfiguration,
 	}, nil
@@ -311,10 +326,10 @@ func (o *BuiltInAuthorizationOptions) buildAuthorizationConfiguration() (*authzc
 					Timeout:                    metav1.Duration{Duration: 30 * time.Second},
 					FailurePolicy:              authzconfig.FailurePolicyNoOpinion,
 					SubjectAccessReviewVersion: o.WebhookVersion,
-					ConnectionInfo: authzconfig.WebhookConnectionInfo{
-						Type:           authzconfig.AuthorizationWebhookConnectionInfoTypeKubeConfigFile,
-						KubeConfigFile: &o.WebhookConfigFile,
-					},
+					// ConnectionInfo: authzconfig.WebhookConnectionInfo{
+					// 	Type:           authzconfig.AuthorizationWebhookConnectionInfoTypeKubeConfigFile,
+					// 	KubeConfigFile: &o.WebhookConfigFile,
+					// },
 				},
 			})
 		default:

@@ -19,6 +19,7 @@ package authorizer
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/seanchann/apimaster/pkg/apiserver/authorizer/modes"
 	"github.com/seanchann/apimaster/pkg/auth/authorizer/abac"
@@ -29,8 +30,8 @@ import (
 	"k8s.io/apiserver/pkg/authorization/authorizer"
 	"k8s.io/apiserver/pkg/authorization/authorizerfactory"
 	"k8s.io/apiserver/pkg/authorization/union"
-	webhookutil "k8s.io/apiserver/pkg/util/webhook"
 	"k8s.io/apiserver/plugin/pkg/authorizer/webhook"
+	"k8s.io/client-go/rest"
 )
 
 // Config contains the data on how to authorize a request to the Kube API Server
@@ -46,6 +47,9 @@ type Config struct {
 	// This allows us to configure the sleep time at each iteration and the maximum number of retries allowed
 	// before we fail the webhook call in order to limit the fan out that ensues when the system is degraded.
 	WebhookRetryBackoff *wait.Backoff
+
+	WebhookHost    string
+	WebhookAPIPath string
 
 	// VersionedInformerFactory versionedinformers.SharedInformerFactory
 
@@ -98,10 +102,13 @@ func (config Config) New() (authorizer.Authorizer, authorizer.RuleResolver, erro
 			if config.WebhookRetryBackoff == nil {
 				return nil, nil, errors.New("retry backoff parameters for authorization webhook has not been specified")
 			}
-			clientConfig, err := webhookutil.LoadKubeconfig(*configuredAuthorizer.Webhook.ConnectionInfo.KubeConfigFile, config.CustomDial)
-			if err != nil {
-				return nil, nil, err
+
+			clientConfig := &rest.Config{
+				Host:    config.WebhookHost,
+				APIPath: config.WebhookAPIPath,
+				Timeout: time.Duration(time.Second * 1),
 			}
+
 			var decisionOnError authorizer.Decision
 			switch configuredAuthorizer.Webhook.FailurePolicy {
 			case authzconfig.FailurePolicyNoOpinion:

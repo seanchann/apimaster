@@ -18,6 +18,7 @@ package authenticator
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	utilnet "k8s.io/apimachinery/pkg/util/net"
@@ -36,10 +37,10 @@ import (
 	"k8s.io/apiserver/pkg/authentication/token/tokenfile"
 	tokenunion "k8s.io/apiserver/pkg/authentication/token/union"
 	"k8s.io/apiserver/pkg/server/dynamiccertificates"
-	webhookutil "k8s.io/apiserver/pkg/util/webhook"
 	"k8s.io/apiserver/plugin/pkg/authenticator/token/oidc"
 	"k8s.io/apiserver/plugin/pkg/authenticator/token/webhook"
 	typedv1core "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
 	"k8s.io/kube-openapi/pkg/spec3"
 	"k8s.io/kube-openapi/pkg/validation/spec"
 
@@ -67,6 +68,8 @@ type Config struct {
 	// This allows us to configure the sleep time at each iteration and the maximum number of retries allowed
 	// before we fail the webhook call in order to limit the fan out that ensues when the system is degraded.
 	WebhookRetryBackoff *wait.Backoff
+	WebhookHost         string
+	WebhookAPIPath      string
 
 	TokenSuccessCacheTTL time.Duration
 	TokenFailureCacheTTL time.Duration
@@ -169,11 +172,13 @@ func (config Config) New() (authenticator.Request, *spec.SecurityDefinitions, sp
 	}
 
 	if len(config.WebhookTokenAuthnConfigFile) > 0 {
+		fmt.Println("Using webhook token authenticator from file:", config.WebhookTokenAuthnConfigFile)
 		webhookTokenAuth, err := newWebhookTokenAuthenticator(config)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 
+		fmt.Println("2-Using webhook token authenticator from file:", config.WebhookTokenAuthnConfigFile)
 		tokenAuthenticators = append(tokenAuthenticators, webhookTokenAuth)
 	}
 
@@ -279,9 +284,10 @@ func newWebhookTokenAuthenticator(config Config) (authenticator.Token, error) {
 		return nil, errors.New("retry backoff parameters for authentication webhook has not been specified")
 	}
 
-	clientConfig, err := webhookutil.LoadKubeconfig(config.WebhookTokenAuthnConfigFile, config.CustomDial)
-	if err != nil {
-		return nil, err
+	clientConfig := &rest.Config{
+		Host:    config.WebhookHost,
+		APIPath: config.WebhookAPIPath,
+		Timeout: time.Duration(time.Second * 1),
 	}
 	webhookTokenAuthenticator, err := webhook.New(clientConfig, config.WebhookTokenAuthnVersion, config.APIAudiences, *config.WebhookRetryBackoff)
 	if err != nil {

@@ -124,6 +124,10 @@ type WebHookAuthenticationOptions struct {
 	Version    string
 	CacheTTL   time.Duration
 
+	//Append webhook path to the webhook URL
+	Host    string
+	APIPath string
+
 	// RetryBackoff specifies the backoff parameters for the authentication webhook retry logic.
 	// This allows us to configure the sleep time at each iteration and the maximum number of retries allowed
 	// before we fail the webhook call in order to limit the fan out that ensues when the system is degraded.
@@ -199,6 +203,7 @@ func (o *BuiltInAuthenticationOptions) WithWebHook() *BuiltInAuthenticationOptio
 		Version:      "v1beta1",
 		CacheTTL:     2 * time.Minute,
 		RetryBackoff: genericoptions.DefaultAuthWebhookRetryBackoff(),
+		APIPath:      "/apis/auth/authentication",
 	}
 	return o
 }
@@ -407,15 +412,21 @@ func (o *BuiltInAuthenticationOptions) AddFlags(fs *pflag.FlagSet) {
 	}
 
 	if o.WebHook != nil {
-		fs.StringVar(&o.WebHook.ConfigFile, "authentication-token-webhook-config-file", o.WebHook.ConfigFile, ""+
-			"File with webhook configuration for token authentication in kubeconfig format. "+
-			"The API server will query the remote service to determine authentication for bearer tokens.")
+		// fs.StringVar(&o.WebHook.ConfigFile, "authentication-token-webhook-config-file", o.WebHook.ConfigFile, ""+
+		// 	"File with webhook configuration for token authentication in kubeconfig format. "+
+		// 	"The API server will query the remote service to determine authentication for bearer tokens.")
 
 		fs.StringVar(&o.WebHook.Version, "authentication-token-webhook-version", o.WebHook.Version, ""+
 			"The API version of the authentication.k8s.io TokenReview to send to and expect from the webhook.")
 
 		fs.DurationVar(&o.WebHook.CacheTTL, "authentication-token-webhook-cache-ttl", o.WebHook.CacheTTL,
 			"The duration to cache responses from the webhook token authenticator.")
+
+		fs.StringVar(&o.WebHook.Host, "authentication-token-webhook-host", o.WebHook.Host, ""+
+			"webhook host. eg:127.0.0.1:8443")
+
+		fs.StringVar(&o.WebHook.APIPath, "authentication-token-webhook-apipath", o.WebHook.APIPath, ""+
+			"webhook api path. eg: /api/auth/authentication")
 	}
 }
 
@@ -545,10 +556,12 @@ func (o *BuiltInAuthenticationOptions) ToAuthenticationConfig() (kubeauthenticat
 	}
 
 	if o.WebHook != nil {
-		ret.WebhookTokenAuthnConfigFile = o.WebHook.ConfigFile
+		// ret.WebhookTokenAuthnConfigFile = o.WebHook.ConfigFile
 		ret.WebhookTokenAuthnVersion = o.WebHook.Version
 		ret.WebhookTokenAuthnCacheTTL = o.WebHook.CacheTTL
 		ret.WebhookRetryBackoff = o.WebHook.RetryBackoff
+		ret.WebhookHost = o.WebHook.Host
+		ret.WebhookAPIPath = o.WebHook.APIPath
 
 		if len(o.WebHook.ConfigFile) > 0 && o.WebHook.CacheTTL > 0 {
 			if o.TokenSuccessCacheTTL > 0 && o.WebHook.CacheTTL < o.TokenSuccessCacheTTL {
@@ -597,6 +610,7 @@ func (o *BuiltInAuthenticationOptions) ApplyTo(authInfo *genericapiserver.Authen
 		authInfo.APIAudiences = authenticator.Audiences(o.ServiceAccounts.Issuers)
 	}
 
+	fmt.Println("authenticatorConfig: here 1")
 	// var nodeLister v1listers.NodeLister
 	// if utilfeature.DefaultFeatureGate.Enabled(features.ServiceAccountTokenNodeBindingValidation) {
 	// 	nodeLister = versionedInformer.Core().V1().Nodes().Lister()
@@ -624,9 +638,11 @@ func (o *BuiltInAuthenticationOptions) ApplyTo(authInfo *genericapiserver.Authen
 		authenticatorConfig.CustomDial = egressDialer
 	}
 
+	fmt.Println("authenticatorConfig: here 2")
 	// var openAPIV3SecuritySchemes spec3.SecuritySchemes
 	authenticator, openAPIV2SecurityDefinitions, openAPIV3SecuritySchemes, err := authenticatorConfig.New()
 	if err != nil {
+		fmt.Println("error creating authenticator: ", err)
 		return err
 	}
 	authInfo.Authenticator = authenticator

@@ -19,6 +19,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/xsbull/utils/logger"
 	authenticationv1 "k8s.io/api/authentication/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var hmacSampleSecret = []byte("41c5b3a9afc98ceb366d5c9db81291")
@@ -48,7 +49,7 @@ func NewJWTAuth() *JWTAuth {
 }
 
 func (ja *JWTAuth) Install(ws *restful.WebService) {
-	ws.Route(ws.POST("/apis/auth/authenticate").
+	ws.Route(ws.POST("/apis/auth/authentication").
 		Consumes(restful.MIME_JSON).
 		Produces(restful.MIME_JSON).
 		To(ja.Authenticate))
@@ -100,7 +101,9 @@ func (ja *JWTAuth) Validate(token string) *SessionInfo {
 }
 
 func (ja *JWTAuth) Authenticate(req *restful.Request, resp *restful.Response) {
-	tokenReq := &authenticationv1.TokenReview{}
+	tokenReq := &authenticationv1.TokenReview{
+		TypeMeta: metav1.TypeMeta{APIVersion: authenticationv1.SchemeGroupVersion.String()},
+	}
 	status := &authenticationv1.TokenReviewStatus{}
 
 	tokenResp := struct {
@@ -119,6 +122,8 @@ func (ja *JWTAuth) Authenticate(req *restful.Request, resp *restful.Response) {
 		resp.WriteEntity(tokenResp)
 		return
 	}
+
+	logger.Logf(logger.DebugLevel, "authenticating TokenReview body: %v", tokenReq)
 
 	if sessInfo := ja.Validate(tokenReq.Spec.Token); sessInfo != nil {
 
