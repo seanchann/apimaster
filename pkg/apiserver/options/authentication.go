@@ -610,7 +610,6 @@ func (o *BuiltInAuthenticationOptions) ApplyTo(authInfo *genericapiserver.Authen
 		authInfo.APIAudiences = authenticator.Audiences(o.ServiceAccounts.Issuers)
 	}
 
-	fmt.Println("authenticatorConfig: here 1")
 	// var nodeLister v1listers.NodeLister
 	// if utilfeature.DefaultFeatureGate.Enabled(features.ServiceAccountTokenNodeBindingValidation) {
 	// 	nodeLister = versionedInformer.Core().V1().Nodes().Lister()
@@ -638,7 +637,6 @@ func (o *BuiltInAuthenticationOptions) ApplyTo(authInfo *genericapiserver.Authen
 		authenticatorConfig.CustomDial = egressDialer
 	}
 
-	fmt.Println("authenticatorConfig: here 2")
 	// var openAPIV3SecuritySchemes spec3.SecuritySchemes
 	authenticator, openAPIV2SecurityDefinitions, openAPIV3SecuritySchemes, err := authenticatorConfig.New()
 	if err != nil {

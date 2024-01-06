@@ -310,8 +310,6 @@ func TestToAuthenticationConfig(t *testing.T) {
 			},
 		},
 		OIDCSigningAlgs:             []string{"RS256"},
-		ServiceAccountLookup:        true,
-		ServiceAccountIssuers:       []string{"http://foo.bar.com"},
 		WebhookTokenAuthnConfigFile: "/token-webhook-config",
 		WebhookTokenAuthnCacheTTL:   180000000000,
 

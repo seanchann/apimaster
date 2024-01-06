@@ -18,7 +18,6 @@ package authenticator
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	utilnet "k8s.io/apimachinery/pkg/util/net"
@@ -171,14 +170,12 @@ func (config Config) New() (authenticator.Request, *spec.SecurityDefinitions, sp
 		}
 	}
 
-	if len(config.WebhookTokenAuthnConfigFile) > 0 {
-		fmt.Println("Using webhook token authenticator from file:", config.WebhookTokenAuthnConfigFile)
+	if len(config.WebhookHost) > 0 {
 		webhookTokenAuth, err := newWebhookTokenAuthenticator(config)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 
-		fmt.Println("2-Using webhook token authenticator from file:", config.WebhookTokenAuthnConfigFile)
 		tokenAuthenticators = append(tokenAuthenticators, webhookTokenAuth)
 	}
 

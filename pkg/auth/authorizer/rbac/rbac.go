@@ -64,6 +64,8 @@ func (ar *AuthorizerRBAC) RBACHandler(req *restful.Request, resp *restful.Respon
 		return
 	}
 
+	subjectResp.Status.Allowed = true
+
 	logger.Logf(logger.DebugLevel, "request SujectAccessReview body: %v", subjectReq)
 
 	resp.WriteEntity(subjectResp)
