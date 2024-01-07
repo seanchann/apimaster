@@ -17,15 +17,30 @@ import (
 )
 
 type AuthenticationUser interface {
-	GetUserInfo(username, namespace, password string) (*user.DefaultInfo, error)
+	CheckUserInfo(username, namespace, password string) (*user.DefaultInfo, error)
 }
 
 type APIAuthenticator interface {
 	InstallLoginAndJWTWebHook(ws *restful.WebService, authUserHandle AuthenticationUser)
 }
 
+type AuthorizationPermissions struct {
+	Username      string
+	UserGroup     []string
+	UserUID       string
+	Extra         map[string][]string
+	APIKind       string
+	APINamespace  string
+	APIGroup      string
+	RequestMethod string
+}
+
+type AuthorizationUser interface {
+	CheckUserPermissions(perm AuthorizationPermissions) bool
+}
+
 type APIAuthorizer interface {
-	InstallRBACWebHook(ws *restful.WebService)
+	InstallRBACWebHook(ws *restful.WebService, permitHandle AuthorizationUser)
 }
 
 type Interface interface {

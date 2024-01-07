@@ -15,7 +15,6 @@ import (
 	"net/http"
 
 	"github.com/emicklei/go-restful/v3"
-	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 type LoginSpec struct {
@@ -58,17 +57,18 @@ func (l *LoginApi) login(req *restful.Request, resp *restful.Response) {
 
 	loginSpec := &LoginSpec{}
 
+	loginErr := NewLoginAuthError()
+
 	err := req.ReadEntity(loginSpec)
 	if err != nil {
-		apierr := errors.NewBadRequest(err.Error())
-		resp.WriteErrorString(http.StatusBadRequest, apierr.Error())
+		resp.WriteErrorString(http.StatusForbidden, loginErr.Status())
 		return
 	}
 
 	token, err := l.loginHook.LoginCheck(loginSpec.Username, loginSpec.Namespace, loginSpec.Password)
 	if err != nil {
-		apierr := errors.NewBadRequest(err.Error())
-		resp.WriteErrorString(http.StatusBadRequest, apierr.Error())
+		resp.WriteErrorString(http.StatusForbidden, loginErr.Status())
+		return
 	}
 
 	loginSpec.Token = token
@@ -81,10 +81,11 @@ func (l *LoginApi) logout(req *restful.Request, resp *restful.Response) {
 
 	loginSpec := &LoginSpec{}
 
+	loginErr := NewLoginAuthError()
+
 	err := req.ReadEntity(loginSpec)
 	if err != nil {
-		apierr := errors.NewBadRequest(err.Error())
-		resp.WriteErrorString(http.StatusBadRequest, apierr.Error())
+		resp.WriteErrorString(http.StatusForbidden, loginErr.Status())
 		return
 	}
 

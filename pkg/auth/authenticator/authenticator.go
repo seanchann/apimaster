@@ -38,7 +38,7 @@ func NewLoginAuth() auth.APIAuthenticator {
 	return manager
 }
 
-func (la LoginAuth) InstallLoginAndJWTWebHook(ws *restful.WebService, authUserHandle auth.AuthenticationUser) {
+func (la *LoginAuth) InstallLoginAndJWTWebHook(ws *restful.WebService, authUserHandle auth.AuthenticationUser) {
 	la.loginApi.Install(ws)
 	la.jwtAuth.Install(ws)
 
@@ -48,7 +48,7 @@ func (la LoginAuth) InstallLoginAndJWTWebHook(ws *restful.WebService, authUserHa
 // LoginCheck 登录检测
 func (la *LoginAuth) LoginCheck(username, namespace, password string) (token string, err error) {
 
-	identityUser, err := la.authUserHandle.GetUserInfo(username, namespace, password)
+	identityUser, err := la.authUserHandle.CheckUserInfo(username, namespace, password)
 	if err != nil {
 		logger.Logf(logger.ErrorLevel, "get user failed, err:%v", err)
 		return "", fmt.Errorf("Authentication failed. user or password invalid")

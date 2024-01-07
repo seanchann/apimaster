@@ -20,6 +20,7 @@ import (
 )
 
 type AuthorizerRBAC struct {
+	authHandle auth.AuthorizationUser
 }
 
 // NewLoginUserManager  manager
@@ -29,11 +30,13 @@ func NewAuthorizerRBAC() auth.APIAuthorizer {
 	return rbac
 }
 
-func (ar *AuthorizerRBAC) InstallRBACWebHook(ws *restful.WebService) {
+func (ar *AuthorizerRBAC) InstallRBACWebHook(ws *restful.WebService, permitHandle auth.AuthorizationUser) {
 	ws.Route(ws.POST("/apis/auth/authorization").
 		Consumes(restful.MIME_JSON).
 		Produces(restful.MIME_JSON).
 		To(ar.RBACHandler))
+
+	ar.authHandle = permitHandle
 }
 
 func (ar *AuthorizerRBAC) RBACHandler(req *restful.Request, resp *restful.Response) {
@@ -64,10 +67,24 @@ func (ar *AuthorizerRBAC) RBACHandler(req *restful.Request, resp *restful.Respon
 		return
 	}
 
-	subjectResp.Status.Allowed = true
+	permission := auth.AuthorizationPermissions{
+		Username:      subjectReq.Spec.User,
+		UserUID:       subjectReq.Spec.UID,
+		UserGroup:     subjectReq.Spec.Groups,
+		APIKind:       subjectReq.Spec.ResourceAttributes.Resource,
+		APIGroup:      subjectReq.Spec.ResourceAttributes.Group,
+		APINamespace:  subjectReq.Spec.ResourceAttributes.Namespace,
+		RequestMethod: subjectReq.Spec.ResourceAttributes.Verb,
+	}
+
+	for key, v := range subjectReq.Spec.Extra {
+		permission.Extra[key] = append([]string{}, v...)
+	}
+
+	subjectResp.Status.Allowed = ar.authHandle.CheckUserPermissions(permission)
 
 	logger.Logf(logger.DebugLevel, "request SujectAccessReview body: %v", subjectReq)
 
 	resp.WriteEntity(subjectResp)
-	return
+
 }
