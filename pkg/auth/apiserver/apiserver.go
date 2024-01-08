@@ -12,19 +12,26 @@
 package apiserver
 
 import (
+	"time"
+
 	"github.com/seanchann/apimaster/pkg/auth"
 	"github.com/seanchann/apimaster/pkg/auth/authenticator"
 	"github.com/seanchann/apimaster/pkg/auth/authorizer/rbac"
 )
+
+type APIAuthConfig struct {
+	JWTAuthSecret []byte
+	JWTAuthexpire time.Duration
+}
 
 type apiAuth struct {
 	auth.APIAuthenticator
 	auth.APIAuthorizer
 }
 
-func NewAPIAuthHandle() auth.Interface {
+func NewAPIAuthHandle(conf APIAuthConfig) auth.Interface {
 	impl := &apiAuth{}
-	impl.APIAuthenticator = authenticator.NewLoginAuth()
+	impl.APIAuthenticator = authenticator.NewLoginAuth(conf.JWTAuthSecret, conf.JWTAuthexpire)
 	impl.APIAuthorizer = rbac.NewAuthorizerRBAC()
 
 	return impl

@@ -22,8 +22,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var hmacSampleSecret = []byte("41c5b3a9afc98ceb366d5c9db81291")
-
 // SessionInfo session info store some information for request user
 type SessionInfo struct {
 	Username  string   `json:"username"`
@@ -39,11 +37,16 @@ type JWTClaims struct {
 
 // ApiJWTToken store a string for unique client
 type JWTAuth struct {
+	secret []byte
+	expire time.Duration
 }
 
 // NewJWTAuth new a api session
-func NewJWTAuth() *JWTAuth {
-	jwt := &JWTAuth{}
+func NewJWTAuth(secret []byte, expire time.Duration) *JWTAuth {
+	jwt := &JWTAuth{
+		secret: append([]byte{}, secret...),
+		expire: expire,
+	}
 
 	return jwt
 }
@@ -56,15 +59,16 @@ func (ja *JWTAuth) Install(ws *restful.WebService) {
 }
 
 // GenerateSession generate new session for user
-func (ja *JWTAuth) GenerateToken(username string, namespace string, groups []string) (token string, err error) {
+func (ja *JWTAuth) GenerateToken(username string, namespace, uid string, groups []string) (token string, err error) {
 	claims := JWTClaims{
 		SessionInfo{
 			Username:  username,
 			Groups:    groups,
 			Namespace: namespace,
+			UID:       uid,
 		},
 		jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(ja.expire)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
 		},
@@ -72,7 +76,7 @@ func (ja *JWTAuth) GenerateToken(username string, namespace string, groups []str
 
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	return jwtToken.SignedString(hmacSampleSecret)
+	return jwtToken.SignedString(ja.secret)
 }
 
 func (ja *JWTAuth) Validate(token string) *SessionInfo {
@@ -81,7 +85,7 @@ func (ja *JWTAuth) Validate(token string) *SessionInfo {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
 
-		return hmacSampleSecret, nil
+		return ja.secret, nil
 	})
 
 	if err != nil {
@@ -94,6 +98,7 @@ func (ja *JWTAuth) Validate(token string) *SessionInfo {
 			Username:  claims.Username,
 			Groups:    claims.Groups,
 			Namespace: claims.Namespace,
+			UID:       claims.UID,
 		}
 	}
 
@@ -122,8 +127,6 @@ func (ja *JWTAuth) Authenticate(req *restful.Request, resp *restful.Response) {
 		resp.WriteEntity(tokenResp)
 		return
 	}
-
-	logger.Logf(logger.DebugLevel, "authenticating TokenReview body: %v", tokenReq)
 
 	if sessInfo := ja.Validate(tokenReq.Spec.Token); sessInfo != nil {
 

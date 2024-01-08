@@ -43,3 +43,29 @@ func (e errLoginAuthFailed) Status() string {
 
 	return string(statusstr)
 }
+
+type errLogoutFailed struct {
+	message string
+}
+
+func NewLogoutError() errLoginAuthFailed {
+	return errLoginAuthFailed{message: "user or token is incorrect"}
+}
+
+func (e errLogoutFailed) Error() string {
+	return fmt.Sprintf("%v", e.message)
+}
+
+func (e errLogoutFailed) Status() string {
+	status := metav1.Status{
+		Status:  metav1.StatusFailure,
+		Code:    http.StatusUnprocessableEntity,
+		Reason:  metav1.StatusReasonInvalid,
+		Message: e.Error(),
+	}
+
+	statusstr, _ := json.Marshal(status)
+
+	return string(statusstr)
+
+}

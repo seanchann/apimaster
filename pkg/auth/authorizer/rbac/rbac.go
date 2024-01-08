@@ -40,6 +40,9 @@ func (ar *AuthorizerRBAC) InstallRBACWebHook(ws *restful.WebService, permitHandl
 }
 
 func (ar *AuthorizerRBAC) RBACHandler(req *restful.Request, resp *restful.Response) {
+
+	logger.Log(logger.DebugLevel, "rbac request")
+
 	subjectReq := &authorizationv1.SubjectAccessReview{
 		TypeMeta: metav1.TypeMeta{APIVersion: authorizationv1.SchemeGroupVersion.Version},
 	}
@@ -55,7 +58,7 @@ func (ar *AuthorizerRBAC) RBACHandler(req *restful.Request, resp *restful.Respon
 		Kind       string `json:"kind"`
 		Status     status `json:"status"`
 	}{
-		APIVersion: subjectReq.APIVersion, //"authorization.k8s.io/v1beta1", //authorizationv1.SchemeGroupVersion.String(),
+		APIVersion: subjectReq.APIVersion,
 		Kind:       "SubjectAccessReview",
 		Status:     status{Allowed: false},
 	}

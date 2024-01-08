@@ -13,6 +13,7 @@ package login
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/emicklei/go-restful/v3"
 )
@@ -29,7 +30,7 @@ type Interface interface {
 	//LoginCheck check user pwd
 	LoginCheck(username, namespace, password string) (token string, err error)
 	//Logout logout
-	Logout(name string) (err error)
+	Logout(username string, token string) (err error)
 }
 
 type LoginApi struct {
@@ -81,13 +82,27 @@ func (l *LoginApi) logout(req *restful.Request, resp *restful.Response) {
 
 	loginSpec := &LoginSpec{}
 
-	loginErr := NewLoginAuthError()
+	loginErr := NewLogoutError()
 
 	err := req.ReadEntity(loginSpec)
 	if err != nil {
 		resp.WriteErrorString(http.StatusForbidden, loginErr.Status())
 		return
 	}
+
+	token, found := strings.CutPrefix(req.Request.Header["Authorization"][0], "Bearer ")
+	if !found {
+		resp.WriteErrorString(http.StatusForbidden, loginErr.Status())
+		return
+	}
+
+	if err = l.loginHook.Logout(loginSpec.Username, token); err != nil {
+		resp.WriteErrorString(http.StatusForbidden, loginErr.Status())
+		return
+	}
+
+	loginSpec.Token = ""
+	loginSpec.Password = ""
 
 	resp.WriteEntity(loginSpec)
 }

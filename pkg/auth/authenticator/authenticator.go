@@ -13,6 +13,7 @@ package authenticator
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/emicklei/go-restful/v3"
 	"github.com/seanchann/apimaster/pkg/auth"
@@ -29,10 +30,10 @@ type LoginAuth struct {
 }
 
 // NewLoginUserManager  manager
-func NewLoginAuth() auth.APIAuthenticator {
+func NewLoginAuth(jwtSecret []byte, expire time.Duration) auth.APIAuthenticator {
 
 	manager := &LoginAuth{}
-	manager.jwtAuth = jwt.NewJWTAuth()
+	manager.jwtAuth = jwt.NewJWTAuth(jwtSecret, expire)
 	manager.loginApi = loginapi.NewLoginApi(manager)
 
 	return manager
@@ -51,26 +52,21 @@ func (la *LoginAuth) LoginCheck(username, namespace, password string) (token str
 	identityUser, err := la.authUserHandle.CheckUserInfo(username, namespace, password)
 	if err != nil {
 		logger.Logf(logger.ErrorLevel, "get user failed, err:%v", err)
-		return "", fmt.Errorf("Authentication failed. user or password invalid")
+		return "", fmt.Errorf("authentication failed(%v). user(%v) or password invalid", err, username)
 	}
 
-	return la.jwtAuth.GenerateToken(username, namespace, identityUser.Groups)
+	return la.jwtAuth.GenerateToken(username, namespace, identityUser.UID, identityUser.Groups)
 }
 
 // Logout 登录退出
-func (la *LoginAuth) Logout(username string) error {
-	// obj, found := loginu.user2sid.Get(username)
-	// if !found {
-	// 	logger.Log(logger.ErrorLevel, "logout user=%v not found", username)
-	// 	return fmt.Errorf("logout user=%v not found", username)
-	// }
+func (la *LoginAuth) Logout(username string, token string) (err error) {
 
-	// sid, ok := obj.(string)
-	// if !ok {
-	// 	logger.Log(logger.ErrorLevel, "logout user=%v not found sid", username)
-	// 	return fmt.Errorf("logout user=%v not found sid", username)
-	// }
+	sess := la.jwtAuth.Validate(token)
+	if sess == nil {
+		return fmt.Errorf("invalid token with user=%v", username)
+	}
 
-	// loginu.Delete(sid)
+	la.authUserHandle.LogoutUser(sess.Username, sess.Namespace, sess.UID, sess.Groups)
+
 	return nil
 }

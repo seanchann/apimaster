@@ -18,6 +18,7 @@ import (
 
 type AuthenticationUser interface {
 	CheckUserInfo(username, namespace, password string) (*user.DefaultInfo, error)
+	LogoutUser(username, namespace, uid string, groups []string)
 }
 
 type APIAuthenticator interface {
