@@ -39,6 +39,10 @@ func NewLoginAuth(jwtSecret []byte, expire time.Duration) auth.APIAuthenticator 
 	return manager
 }
 
+func (la *LoginAuth) GenerateAuthToken(username, namespace, uid string, groups []string) (token string, err error) {
+	return la.jwtAuth.GenerateToken(username, namespace, uid, groups)
+}
+
 func (la *LoginAuth) InstallLoginAndJWTWebHook(ws *restful.WebService, authUserHandle auth.AuthenticationUser) {
 	la.loginApi.Install(ws)
 	la.jwtAuth.Install(ws)

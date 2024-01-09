@@ -23,17 +23,44 @@ type AuthenticationUser interface {
 
 type APIAuthenticator interface {
 	InstallLoginAndJWTWebHook(ws *restful.WebService, authUserHandle AuthenticationUser)
+	GenerateAuthToken(username, namespace, uid string, groups []string) (token string, err error)
+}
+
+type AuthorizationNonResourceAttributes struct {
+	// Path is the URL path of the request
+	Path string
+	// Verb is the standard HTTP verb
+	Verb string
+}
+
+type AuthorizationResourceAttributes struct {
+	// Namespace is the namespace of the action being requested.  Currently, there is no distinction between no namespace and all namespaces
+	// "" (empty) is defaulted for LocalSubjectAccessReviews
+	// "" (empty) is empty for cluster-scoped resources
+	// "" (empty) means "all" for namespace scoped resources from a SubjectAccessReview or SelfSubjectAccessReview
+	Namespace string
+	// Verb is a kubernetes resource API verb, like: get, list, watch, create, update, delete, proxy.  "*" means all.
+	Verb string
+	// Group is the API Group of the Resource.  "*" means all.
+	Group string
+	// Version is the API Version of the Resource.  "*" means all.
+	Version string
+	// Resource is one of the existing resource types.  "*" means all.
+	Resource string
+	// Subresource is one of the existing resource types.  "" means none.
+	Subresource string
+	// Name is the name of the resource being requested for a "get" or deleted for a "delete". "" (empty) means all.
+	Name string
 }
 
 type AuthorizationPermissions struct {
 	Username      string
 	UserGroup     []string
 	UserUID       string
-	Extra         map[string][]string
-	APIKind       string
-	APINamespace  string
-	APIGroup      string
-	RequestMethod string
+	UserExtraData map[string][]string
+
+	NonResourceAttributes *AuthorizationNonResourceAttributes
+	ResourceAttributes    *AuthorizationResourceAttributes
 }
 
 type AuthorizationUser interface {

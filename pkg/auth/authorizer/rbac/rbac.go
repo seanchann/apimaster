@@ -41,8 +41,6 @@ func (ar *AuthorizerRBAC) InstallRBACWebHook(ws *restful.WebService, permitHandl
 
 func (ar *AuthorizerRBAC) RBACHandler(req *restful.Request, resp *restful.Response) {
 
-	logger.Log(logger.DebugLevel, "rbac request")
-
 	subjectReq := &authorizationv1.SubjectAccessReview{
 		TypeMeta: metav1.TypeMeta{APIVersion: authorizationv1.SchemeGroupVersion.Version},
 	}
@@ -74,19 +72,35 @@ func (ar *AuthorizerRBAC) RBACHandler(req *restful.Request, resp *restful.Respon
 		Username:      subjectReq.Spec.User,
 		UserUID:       subjectReq.Spec.UID,
 		UserGroup:     subjectReq.Spec.Groups,
-		APIKind:       subjectReq.Spec.ResourceAttributes.Resource,
-		APIGroup:      subjectReq.Spec.ResourceAttributes.Group,
-		APINamespace:  subjectReq.Spec.ResourceAttributes.Namespace,
-		RequestMethod: subjectReq.Spec.ResourceAttributes.Verb,
+		UserExtraData: make(map[string][]string),
+	}
+
+	if subjectReq.Spec.NonResourceAttributes != nil {
+		permission.NonResourceAttributes = &auth.AuthorizationNonResourceAttributes{}
+
+		permission.NonResourceAttributes.Path = subjectReq.Spec.NonResourceAttributes.Path
+		permission.NonResourceAttributes.Verb = subjectReq.Spec.NonResourceAttributes.Verb
+	}
+
+	if subjectReq.Spec.ResourceAttributes != nil {
+		permission.ResourceAttributes = &auth.AuthorizationResourceAttributes{}
+
+		permission.ResourceAttributes.Group = subjectReq.Spec.ResourceAttributes.Group
+		permission.ResourceAttributes.Name = subjectReq.Spec.ResourceAttributes.Name
+		permission.ResourceAttributes.Namespace = subjectReq.Spec.ResourceAttributes.Namespace
+		permission.ResourceAttributes.Resource = subjectReq.Spec.ResourceAttributes.Resource
+		permission.ResourceAttributes.Subresource = subjectReq.Spec.ResourceAttributes.Subresource
+		permission.ResourceAttributes.Verb = subjectReq.Spec.ResourceAttributes.Verb
+		permission.ResourceAttributes.Version = subjectReq.Spec.ResourceAttributes.Version
 	}
 
 	for key, v := range subjectReq.Spec.Extra {
-		permission.Extra[key] = append([]string{}, v...)
+		permission.UserExtraData[key] = append([]string{}, v...)
 	}
 
 	subjectResp.Status.Allowed = ar.authHandle.CheckUserPermissions(permission)
 
-	logger.Logf(logger.DebugLevel, "request SujectAccessReview body: %v", subjectReq)
+	logger.Logf(logger.DebugLevel, "request SujectAccessReview body: %v", subjectResp)
 
 	resp.WriteEntity(subjectResp)
 
