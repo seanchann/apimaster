@@ -30,9 +30,11 @@ type LoginAuth struct {
 }
 
 // NewLoginUserManager  manager
-func NewLoginAuth(jwtSecret []byte, expire time.Duration) auth.APIAuthenticator {
+func NewLoginAuth(jwtSecret []byte, expire time.Duration, authUserHandle auth.AuthenticationUser) auth.APIAuthenticator {
 
-	manager := &LoginAuth{}
+	manager := &LoginAuth{
+		authUserHandle: authUserHandle,
+	}
 	manager.jwtAuth = jwt.NewJWTAuth(jwtSecret, expire)
 	manager.loginApi = loginapi.NewLoginApi(manager)
 
@@ -40,14 +42,12 @@ func NewLoginAuth(jwtSecret []byte, expire time.Duration) auth.APIAuthenticator 
 }
 
 func (la *LoginAuth) GenerateAuthToken(username, namespace, uid string, groups []string) (token string, err error) {
-	return la.jwtAuth.GenerateToken(username, namespace, uid, groups)
+	return la.jwtAuth.GenerateDebugToken(username, namespace, uid, groups)
 }
 
-func (la *LoginAuth) InstallLoginAndJWTWebHook(ws *restful.WebService, authUserHandle auth.AuthenticationUser) {
+func (la *LoginAuth) InstallLoginAndJWTWebHook(ws *restful.WebService) {
 	la.loginApi.Install(ws)
 	la.jwtAuth.Install(ws)
-
-	la.authUserHandle = authUserHandle
 }
 
 // LoginCheck 登录检测

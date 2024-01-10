@@ -20,8 +20,10 @@ import (
 )
 
 type APIAuthConfig struct {
-	JWTAuthSecret []byte
-	JWTAuthexpire time.Duration
+	JWTAuthSecret      []byte
+	JWTAuthexpire      time.Duration
+	UserAuthentication auth.AuthenticationUser
+	UserAuthorization  auth.AuthorizationUser
 }
 
 type apiAuth struct {
@@ -31,8 +33,8 @@ type apiAuth struct {
 
 func NewAPIAuthHandle(conf APIAuthConfig) auth.Interface {
 	impl := &apiAuth{}
-	impl.APIAuthenticator = authenticator.NewLoginAuth(conf.JWTAuthSecret, conf.JWTAuthexpire)
-	impl.APIAuthorizer = rbac.NewAuthorizerRBAC()
+	impl.APIAuthenticator = authenticator.NewLoginAuth(conf.JWTAuthSecret, conf.JWTAuthexpire, conf.UserAuthentication)
+	impl.APIAuthorizer = rbac.NewAuthorizerRBAC(conf.UserAuthorization)
 
 	return impl
 }

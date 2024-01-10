@@ -24,19 +24,19 @@ type AuthorizerRBAC struct {
 }
 
 // NewLoginUserManager  manager
-func NewAuthorizerRBAC() auth.APIAuthorizer {
-	rbac := &AuthorizerRBAC{}
+func NewAuthorizerRBAC(permitHandle auth.AuthorizationUser) auth.APIAuthorizer {
+	rbac := &AuthorizerRBAC{
+		authHandle: permitHandle,
+	}
 
 	return rbac
 }
 
-func (ar *AuthorizerRBAC) InstallRBACWebHook(ws *restful.WebService, permitHandle auth.AuthorizationUser) {
+func (ar *AuthorizerRBAC) InstallRBACWebHook(ws *restful.WebService) {
 	ws.Route(ws.POST("/apis/auth/authorization").
 		Consumes(restful.MIME_JSON).
 		Produces(restful.MIME_JSON).
 		To(ar.RBACHandler))
-
-	ar.authHandle = permitHandle
 }
 
 func (ar *AuthorizerRBAC) RBACHandler(req *restful.Request, resp *restful.Response) {

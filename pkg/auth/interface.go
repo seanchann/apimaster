@@ -21,11 +21,6 @@ type AuthenticationUser interface {
 	LogoutUser(username, namespace, uid string, groups []string)
 }
 
-type APIAuthenticator interface {
-	InstallLoginAndJWTWebHook(ws *restful.WebService, authUserHandle AuthenticationUser)
-	GenerateAuthToken(username, namespace, uid string, groups []string) (token string, err error)
-}
-
 type AuthorizationNonResourceAttributes struct {
 	// Path is the URL path of the request
 	Path string
@@ -68,7 +63,12 @@ type AuthorizationUser interface {
 }
 
 type APIAuthorizer interface {
-	InstallRBACWebHook(ws *restful.WebService, permitHandle AuthorizationUser)
+	InstallRBACWebHook(ws *restful.WebService)
+}
+
+type APIAuthenticator interface {
+	InstallLoginAndJWTWebHook(ws *restful.WebService)
+	GenerateAuthToken(username, namespace, uid string, groups []string) (token string, err error)
 }
 
 type Interface interface {

@@ -58,6 +58,25 @@ func (ja *JWTAuth) Install(ws *restful.WebService) {
 		To(ja.Authenticate))
 }
 
+// GenerateDebugToken generate new session for user
+func (ja *JWTAuth) GenerateDebugToken(username string, namespace, uid string, groups []string) (token string, err error) {
+	claims := JWTClaims{
+		SessionInfo{
+			Username:  username,
+			Groups:    groups,
+			Namespace: namespace,
+			UID:       uid,
+		},
+		jwt.RegisteredClaims{
+			ID: uid,
+		},
+	}
+
+	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	return jwtToken.SignedString(ja.secret)
+}
+
 // GenerateSession generate new session for user
 func (ja *JWTAuth) GenerateToken(username string, namespace, uid string, groups []string) (token string, err error) {
 	claims := JWTClaims{
