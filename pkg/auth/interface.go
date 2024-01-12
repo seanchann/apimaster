@@ -12,13 +12,19 @@
 package auth
 
 import (
+	"time"
+
 	"github.com/emicklei/go-restful/v3"
-	"k8s.io/apiserver/pkg/authentication/user"
 )
 
+// user.DefaultInfo扩展的Extra字段的key
+var UserDefaultInfoExtraKeyNamespace = "namespace"
+
+type LoginCheckFunc func(readObj interface{}) error
+
 type AuthenticationHook interface {
-	CheckUserInfo(username, namespace, password string) (*user.DefaultInfo, error)
-	LogoutUser(username, namespace, uid string, groups []string)
+	Login(checkFunc LoginCheckFunc) (resp interface{}, err error)
+	Logout(checkFunc LoginCheckFunc, token string) (respBody interface{}, err error)
 }
 
 type AuthorizationNonResourceAttributes struct {
@@ -48,12 +54,15 @@ type AuthorizationResourceAttributes struct {
 	Name string
 }
 
-type AuthorizationPermissions struct {
+type UserInfo struct {
 	Username      string
 	UserGroup     []string
 	UserUID       string
 	UserExtraData map[string][]string
+}
 
+type AuthorizationPermissions struct {
+	UserInfo
 	NonResourceAttributes *AuthorizationNonResourceAttributes
 	ResourceAttributes    *AuthorizationResourceAttributes
 }
@@ -63,14 +72,18 @@ type AuthorizationHook interface {
 }
 
 type APIAuthorizer interface {
+	//JWTTokenHandler 安装支持类k8s的auth webhook的处理
 	RBACHandler() restful.RouteFunction
 }
 
 type APIAuthenticator interface {
 	LoginHandler() restful.RouteFunction
 	LogoutHandler() restful.RouteFunction
+	//JWTTokenHandler 安装支持类k8s的auth webhook的处理
 	JWTTokenHandler() restful.RouteFunction
-	GenerateAuthToken(username, namespace, uid string, groups []string) (token string, err error)
+
+	GenerateAuthToken(username, namespace, uid string, groups []string, timeout time.Duration) (token string, err error)
+	Validate(token string) (*UserInfo, error)
 }
 
 type Interface interface {

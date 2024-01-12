@@ -24,6 +24,7 @@ type APIAuthConfig struct {
 	JWTAuthexpire      time.Duration
 	UserAuthentication auth.AuthenticationHook
 	UserAuthorization  auth.AuthorizationHook
+
 }
 
 type apiAuth struct {

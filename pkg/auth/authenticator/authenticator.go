@@ -19,7 +19,6 @@ import (
 	"github.com/seanchann/apimaster/pkg/auth"
 	"github.com/seanchann/apimaster/pkg/auth/authenticator/internal/jwt"
 	loginapi "github.com/seanchann/apimaster/pkg/auth/authenticator/internal/login"
-	"github.com/xsbull/utils/logger"
 )
 
 // LoginAuth Login
@@ -36,13 +35,17 @@ func NewLoginAuth(jwtSecret []byte, expire time.Duration, authUserHandle auth.Au
 		authUserHandle: authUserHandle,
 	}
 	manager.jwtAuth = jwt.NewJWTAuth(jwtSecret, expire)
-	manager.loginApi = loginapi.NewLoginApi(manager)
+	manager.loginApi = loginapi.NewLoginApi(manager.authUserHandle)
 
 	return manager
 }
 
-func (la *LoginAuth) GenerateAuthToken(username, namespace, uid string, groups []string) (token string, err error) {
-	return la.jwtAuth.GenerateDebugToken(username, namespace, uid, groups)
+func (la *LoginAuth) GenerateAuthToken(username, namespace, uid string, groups []string, timeout time.Duration) (token string, err error) {
+
+	if timeout == 0 {
+		return la.jwtAuth.GenerateDebugToken(username, namespace, uid, groups)
+	}
+	return la.jwtAuth.GenerateToken(username, namespace, uid, groups, timeout)
 }
 
 func (la *LoginAuth) LoginHandler() restful.RouteFunction {
@@ -57,27 +60,21 @@ func (la *LoginAuth) JWTTokenHandler() restful.RouteFunction {
 	return la.jwtAuth.Authenticate
 }
 
-// LoginCheck 登录检测
-func (la *LoginAuth) LoginCheck(username, namespace, password string) (token string, err error) {
-
-	identityUser, err := la.authUserHandle.CheckUserInfo(username, namespace, password)
-	if err != nil {
-		logger.Logf(logger.ErrorLevel, "get user failed, err:%v", err)
-		return "", fmt.Errorf("authentication failed(%v). user(%v) or password invalid", err, username)
-	}
-
-	return la.jwtAuth.GenerateToken(username, namespace, identityUser.UID, identityUser.Groups)
-}
-
-// Logout 登录退出
-func (la *LoginAuth) Logout(username string, token string) (err error) {
-
+func (la *LoginAuth) Validate(token string) (*auth.UserInfo, error) {
 	sess := la.jwtAuth.Validate(token)
 	if sess == nil {
-		return fmt.Errorf("invalid token with user=%v", username)
+		return nil, fmt.Errorf("invalid token with user=%v", sess.Username)
 	}
 
-	la.authUserHandle.LogoutUser(sess.Username, sess.Namespace, sess.UID, sess.Groups)
+	user := &auth.UserInfo{
+		Username:  sess.Username,
+		UserGroup: append([]string{}, sess.Groups...),
+		UserUID:   sess.UID,
+		UserExtraData: map[string][]string{
+			auth.UserDefaultInfoExtraKeyNamespace: {sess.Namespace},
+		},
+	}
 
-	return nil
+	return user, nil
+
 }

@@ -71,7 +71,7 @@ func (ja *JWTAuth) GenerateDebugToken(username string, namespace, uid string, gr
 }
 
 // GenerateSession generate new session for user
-func (ja *JWTAuth) GenerateToken(username string, namespace, uid string, groups []string) (token string, err error) {
+func (ja *JWTAuth) GenerateToken(username string, namespace, uid string, groups []string, timeout time.Duration) (token string, err error) {
 	claims := JWTClaims{
 		SessionInfo{
 			Username:  username,
@@ -80,7 +80,7 @@ func (ja *JWTAuth) GenerateToken(username string, namespace, uid string, groups 
 			UID:       uid,
 		},
 		jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(ja.expire)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(timeout)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
 		},

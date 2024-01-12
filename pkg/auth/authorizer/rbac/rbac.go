@@ -62,10 +62,12 @@ func (ar *AuthorizerRBAC) RBACWebHookHandler(req *restful.Request, resp *restful
 	}
 
 	permission := auth.AuthorizationPermissions{
-		Username:      subjectReq.Spec.User,
-		UserUID:       subjectReq.Spec.UID,
-		UserGroup:     subjectReq.Spec.Groups,
-		UserExtraData: make(map[string][]string),
+		UserInfo: auth.UserInfo{
+			Username:      subjectReq.Spec.User,
+			UserUID:       subjectReq.Spec.UID,
+			UserGroup:     subjectReq.Spec.Groups,
+			UserExtraData: make(map[string][]string),
+		},
 	}
 
 	if subjectReq.Spec.NonResourceAttributes != nil {
