@@ -49,7 +49,12 @@ func (l *LoginApi) Login(req *restful.Request, resp *restful.Response) {
 func (l *LoginApi) Logout(req *restful.Request, resp *restful.Response) {
 	loginErr := NewLogoutError()
 
-	token, found := strings.CutPrefix(req.Request.Header["Authorization"][0], "Bearer ")
+	authHeader := req.Request.Header["Authorization"]
+	if len(authHeader) == 0 {
+		resp.WriteErrorString(http.StatusForbidden, loginErr.Status())
+		return
+	}
+	token, found := strings.CutPrefix(authHeader[0], "Bearer ")
 	if !found {
 		resp.WriteErrorString(http.StatusForbidden, loginErr.Status())
 		return
