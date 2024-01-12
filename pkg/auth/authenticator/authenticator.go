@@ -26,11 +26,11 @@ import (
 type LoginAuth struct {
 	jwtAuth        *jwt.JWTAuth
 	loginApi       *loginapi.LoginApi
-	authUserHandle auth.AuthenticationUser
+	authUserHandle auth.AuthenticationHook
 }
 
 // NewLoginUserManager  manager
-func NewLoginAuth(jwtSecret []byte, expire time.Duration, authUserHandle auth.AuthenticationUser) auth.APIAuthenticator {
+func NewLoginAuth(jwtSecret []byte, expire time.Duration, authUserHandle auth.AuthenticationHook) auth.APIAuthenticator {
 
 	manager := &LoginAuth{
 		authUserHandle: authUserHandle,
@@ -45,9 +45,16 @@ func (la *LoginAuth) GenerateAuthToken(username, namespace, uid string, groups [
 	return la.jwtAuth.GenerateDebugToken(username, namespace, uid, groups)
 }
 
-func (la *LoginAuth) InstallLoginAndJWTWebHook(ws *restful.WebService) {
-	la.loginApi.Install(ws)
-	la.jwtAuth.Install(ws)
+func (la *LoginAuth) LoginHandler() restful.RouteFunction {
+	return la.loginApi.Login
+}
+
+func (la *LoginAuth) LogoutHandler() restful.RouteFunction {
+	return la.loginApi.Logout
+}
+
+func (la *LoginAuth) JWTTokenHandler() restful.RouteFunction {
+	return la.jwtAuth.Authenticate
 }
 
 // LoginCheck 登录检测

@@ -16,7 +16,7 @@ import (
 	"k8s.io/apiserver/pkg/authentication/user"
 )
 
-type AuthenticationUser interface {
+type AuthenticationHook interface {
 	CheckUserInfo(username, namespace, password string) (*user.DefaultInfo, error)
 	LogoutUser(username, namespace, uid string, groups []string)
 }
@@ -58,16 +58,18 @@ type AuthorizationPermissions struct {
 	ResourceAttributes    *AuthorizationResourceAttributes
 }
 
-type AuthorizationUser interface {
+type AuthorizationHook interface {
 	CheckUserPermissions(perm AuthorizationPermissions) bool
 }
 
 type APIAuthorizer interface {
-	InstallRBACWebHook(ws *restful.WebService)
+	RBACHandler() restful.RouteFunction
 }
 
 type APIAuthenticator interface {
-	InstallLoginAndJWTWebHook(ws *restful.WebService)
+	LoginHandler() restful.RouteFunction
+	LogoutHandler() restful.RouteFunction
+	JWTTokenHandler() restful.RouteFunction
 	GenerateAuthToken(username, namespace, uid string, groups []string) (token string, err error)
 }
 

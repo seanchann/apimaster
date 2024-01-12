@@ -43,18 +43,7 @@ func NewLoginApi(handle Interface) *LoginApi {
 	}
 }
 
-func (l *LoginApi) Install(ws *restful.WebService) {
-	ws.Route(ws.POST("/apis/auth/logout").
-		Consumes(restful.MIME_JSON).
-		Produces(restful.MIME_JSON).
-		To(l.logout))
-	ws.Route(ws.POST("/apis/auth/login").
-		Consumes(restful.MIME_JSON).
-		Produces(restful.MIME_JSON).
-		To(l.login))
-}
-
-func (l *LoginApi) login(req *restful.Request, resp *restful.Response) {
+func (l *LoginApi) Login(req *restful.Request, resp *restful.Response) {
 
 	loginSpec := &LoginSpec{}
 
@@ -78,7 +67,7 @@ func (l *LoginApi) login(req *restful.Request, resp *restful.Response) {
 	resp.WriteEntity(loginSpec)
 }
 
-func (l *LoginApi) logout(req *restful.Request, resp *restful.Response) {
+func (l *LoginApi) Logout(req *restful.Request, resp *restful.Response) {
 
 	loginSpec := &LoginSpec{}
 

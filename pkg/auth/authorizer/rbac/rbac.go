@@ -20,11 +20,11 @@ import (
 )
 
 type AuthorizerRBAC struct {
-	authHandle auth.AuthorizationUser
+	authHandle auth.AuthorizationHook
 }
 
 // NewLoginUserManager  manager
-func NewAuthorizerRBAC(permitHandle auth.AuthorizationUser) auth.APIAuthorizer {
+func NewAuthorizerRBAC(permitHandle auth.AuthorizationHook) *AuthorizerRBAC {
 	rbac := &AuthorizerRBAC{
 		authHandle: permitHandle,
 	}
@@ -32,14 +32,7 @@ func NewAuthorizerRBAC(permitHandle auth.AuthorizationUser) auth.APIAuthorizer {
 	return rbac
 }
 
-func (ar *AuthorizerRBAC) InstallRBACWebHook(ws *restful.WebService) {
-	ws.Route(ws.POST("/apis/auth/authorization").
-		Consumes(restful.MIME_JSON).
-		Produces(restful.MIME_JSON).
-		To(ar.RBACHandler))
-}
-
-func (ar *AuthorizerRBAC) RBACHandler(req *restful.Request, resp *restful.Response) {
+func (ar *AuthorizerRBAC) RBACWebHookHandler(req *restful.Request, resp *restful.Response) {
 
 	subjectReq := &authorizationv1.SubjectAccessReview{
 		TypeMeta: metav1.TypeMeta{APIVersion: authorizationv1.SchemeGroupVersion.Version},

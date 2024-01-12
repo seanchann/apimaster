@@ -51,13 +51,6 @@ func NewJWTAuth(secret []byte, expire time.Duration) *JWTAuth {
 	return jwt
 }
 
-func (ja *JWTAuth) Install(ws *restful.WebService) {
-	ws.Route(ws.POST("/apis/auth/authentication").
-		Consumes(restful.MIME_JSON).
-		Produces(restful.MIME_JSON).
-		To(ja.Authenticate))
-}
-
 // GenerateDebugToken generate new session for user
 func (ja *JWTAuth) GenerateDebugToken(username string, namespace, uid string, groups []string) (token string, err error) {
 	claims := JWTClaims{

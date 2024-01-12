@@ -16,14 +16,14 @@ import (
 
 	"github.com/seanchann/apimaster/pkg/auth"
 	"github.com/seanchann/apimaster/pkg/auth/authenticator"
-	"github.com/seanchann/apimaster/pkg/auth/authorizer/rbac"
+	"github.com/seanchann/apimaster/pkg/auth/authorizer"
 )
 
 type APIAuthConfig struct {
 	JWTAuthSecret      []byte
 	JWTAuthexpire      time.Duration
-	UserAuthentication auth.AuthenticationUser
-	UserAuthorization  auth.AuthorizationUser
+	UserAuthentication auth.AuthenticationHook
+	UserAuthorization  auth.AuthorizationHook
 }
 
 type apiAuth struct {
@@ -34,7 +34,7 @@ type apiAuth struct {
 func NewAPIAuthHandle(conf APIAuthConfig) auth.Interface {
 	impl := &apiAuth{}
 	impl.APIAuthenticator = authenticator.NewLoginAuth(conf.JWTAuthSecret, conf.JWTAuthexpire, conf.UserAuthentication)
-	impl.APIAuthorizer = rbac.NewAuthorizerRBAC(conf.UserAuthorization)
+	impl.APIAuthorizer = authorizer.NewAuthorizer(conf.UserAuthorization)
 
 	return impl
 }
