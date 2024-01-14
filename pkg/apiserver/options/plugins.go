@@ -41,7 +41,7 @@ func RegisterAllAdmissionPlugins(plugins *admission.Plugins) {
 	deny.Register(plugins)  // DEPRECATED as no real meaning
 }
 
-// DefaultOffAdmissionPlugins get admission plugins off by default for kube-apiserver.
+// DefaultOffAdmissionPlugins get admission plugins off by default for apimaster.
 func DefaultOffAdmissionPlugins() sets.String {
 	defaultOnPlugins := sets.NewString()
 

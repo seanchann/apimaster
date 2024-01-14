@@ -1,5 +1,5 @@
 /********************************************************************
-* Copyright (c) 2008 - 2024. sean <seandev@foxmail>
+* Copyright (c) 2008 - 2024. seanchann <seanchann.zhou@gmail.com>
 * All rights reserved.
 *
 * PROPRIETARY RIGHTS of the following material in either
@@ -24,7 +24,6 @@ type APIAuthConfig struct {
 	JWTAuthexpire      time.Duration
 	UserAuthentication auth.AuthenticationHook
 	UserAuthorization  auth.AuthorizationHook
-
 }
 
 type apiAuth struct {
