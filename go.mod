@@ -7,7 +7,6 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.0
 	github.com/google/go-cmp v0.6.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.8.4
 	github.com/xsbull/utils v0.0.1
 	k8s.io/api v0.29.0
 	k8s.io/apimachinery v0.29.0
@@ -66,7 +65,6 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/pquerna/cachecontrol v0.1.0 // indirect
 	github.com/prometheus/client_golang v1.16.0 // indirect
 	github.com/prometheus/client_model v0.4.0 // indirect
@@ -120,7 +118,7 @@ require (
 replace (
 	k8s.io/api => k8s.io/api v0.0.0-20231220172311-84c476802242
 	k8s.io/apimachinery => k8s.io/apimachinery v0.0.0-20231220171733-60eaa653342b
-	k8s.io/apiserver => github.com/seanchann/apiserver v0.0.0-20240106094957-62c3b1c87f8e
+	k8s.io/apiserver => github.com/seanchann/apiserver v0.0.0-20240116073835-ebd189fbff13
 	k8s.io/client-go => k8s.io/client-go v0.0.0-20231220173006-5a0a4247921d
 	k8s.io/component-base => k8s.io/component-base v0.0.0-20231220174245-d65d3c777615
 	k8s.io/kms => k8s.io/kms v0.0.0-20231220174908-0e979309a09f
