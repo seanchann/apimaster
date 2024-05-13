@@ -1,3 +1,19 @@
+/********************************************************************
+* Copyright (c) 2008 - 2024. Authors: seanchann <seandev@foxmail.com>
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*         http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*******************************************************************/
+
 package options
 
 import (
@@ -11,13 +27,13 @@ import (
 	"k8s.io/apiserver/pkg/storage/storagebackend"
 )
 
-//SqliteOptions sqlite as a backend
+// SqliteOptions sqlite as a backend
 type SqliteOptions struct {
 	StorageConfig           storagebackend.Config
 	DefaultStorageMediaType string
 }
 
-//NewSqliteOptions create  mysql options
+// NewSqliteOptions create  mysql options
 func NewSqliteOptions(backendConfig *storagebackend.Config) *SqliteOptions {
 	sqlite := &SqliteOptions{
 		StorageConfig:           *backendConfig,
@@ -28,7 +44,7 @@ func NewSqliteOptions(backendConfig *storagebackend.Config) *SqliteOptions {
 	return sqlite
 }
 
-//Validate validate mysql input options
+// Validate validate mysql input options
 func (s *SqliteOptions) Validate() []error {
 	allErrors := []error{}
 	if len(s.StorageConfig.Sqlite.DSN) == 0 {
@@ -49,7 +65,7 @@ func (s *SqliteOptions) AddFlags(fs *pflag.FlagSet) {
 		"the default limit for sqlite query.")
 }
 
-//ApplyTo apply to server
+// ApplyTo apply to server
 func (s *SqliteOptions) ApplyTo(c *server.Config) error {
 	if s == nil {
 		return nil
@@ -58,18 +74,18 @@ func (s *SqliteOptions) ApplyTo(c *server.Config) error {
 	return nil
 }
 
-//ApplyWithStorageFactoryTo apply to storage factory
+// ApplyWithStorageFactoryTo apply to storage factory
 func (s *SqliteOptions) ApplyWithStorageFactoryTo(factory serverstorage.StorageFactory, c *server.Config) error {
 	c.RESTOptionsGetter = &sqliteStorageFactoryRestOptionsFactory{Options: *s, StorageFactory: factory}
 	return nil
 }
 
-//SqliteSimpleRestOptionsFactory simple rest options factory
+// SqliteSimpleRestOptionsFactory simple rest options factory
 type SqliteSimpleRestOptionsFactory struct {
 	Options SqliteOptions
 }
 
-//GetRESTOptions impl generic.RESTOptions
+// GetRESTOptions impl generic.RESTOptions
 func (f *SqliteSimpleRestOptionsFactory) GetRESTOptions(resource schema.GroupResource) (generic.RESTOptions, error) {
 	ret := generic.RESTOptions{
 		StorageConfig: &storagebackend.ConfigForResource{

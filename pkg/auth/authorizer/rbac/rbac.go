@@ -1,12 +1,17 @@
 /********************************************************************
-* Copyright (c) 2008 - 2024. seanchann <seanchann.zhou@gmail.com>
-* All rights reserved.
+* Copyright (c) 2008 - 2024. Authors: seanchann <seandev@foxmail.com>
 *
-* PROPRIETARY RIGHTS of the following material in either
-* electronic or paper format pertain to sean.
-* All manufacturing, reproduction, use, and sales involved with
-* this subject MUST conform to the license agreement signed
-* with sean.
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*         http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
 *******************************************************************/
 
 package rbac
@@ -14,9 +19,9 @@ package rbac
 import (
 	"github.com/emicklei/go-restful/v3"
 	"github.com/seanchann/apimaster/pkg/auth"
-	"github.com/xsbull/utils/logger"
 	authorizationv1 "k8s.io/api/authorization/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog"
 )
 
 type AuthorizerRBAC struct {
@@ -56,7 +61,7 @@ func (ar *AuthorizerRBAC) RBACWebHookHandler(req *restful.Request, resp *restful
 
 	err := req.ReadEntity(subjectReq)
 	if err != nil {
-		logger.Logf(logger.ErrorLevel, "read SujectAccessReview body failed: %v", err)
+		klog.Infof("read SujectAccessReview body failed: %v", err)
 		resp.WriteEntity(subjectResp)
 		return
 	}
@@ -95,7 +100,7 @@ func (ar *AuthorizerRBAC) RBACWebHookHandler(req *restful.Request, resp *restful
 
 	subjectResp.Status.Allowed = ar.authHandle.CheckUserPermissions(permission)
 
-	logger.Logf(logger.DebugLevel, "request SujectAccessReview body: %v", subjectResp)
+	klog.V(3).Infof("request SujectAccessReview body: %v", subjectResp)
 
 	resp.WriteEntity(subjectResp)
 
