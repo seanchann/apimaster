@@ -197,7 +197,7 @@ type APIServerProvider interface {
 	Version() *apimachineryversion.Info
 	DefaultAPIResourceConfigSource() *serverstorage.ResourceConfig
 	DefaultInstallExtendRoutes(c *restful.Container)
-	NewAPIServerProvider(para []interface{}) (ControllerProvider, error)
+	NewControllerProvider(para []interface{}) (ControllerProvider, error)
 	GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition
 
 	//for client

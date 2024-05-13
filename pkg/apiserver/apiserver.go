@@ -327,7 +327,7 @@ func BuildGenericConfig(s completedServerRunOptions,
 	}
 
 	config.ExtraConfig.ExtendRoutesFunc = s.apiProvider.DefaultInstallExtendRoutes
-	config.ExtraConfig.ControllerConfig.NewFunc = s.apiProvider.NewAPIServerProvider
+	config.ExtraConfig.ControllerConfig.NewFunc = s.apiProvider.NewControllerProvider
 	//append our private parameter for controller
 	config.ExtraConfig.ControllerConfig.NewParameters = append(config.ExtraConfig.ControllerConfig.NewParameters, versionClient)
 	config.ExtraConfig.ControllerConfig.NewParameters = append(config.ExtraConfig.ControllerConfig.NewParameters, clientgoExternalClient)
