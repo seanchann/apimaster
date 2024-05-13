@@ -17,13 +17,14 @@ limitations under the License.
 package abac
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
 
 	"github.com/seanchann/apimaster/pkg/apis/abac"
-	"github.com/seanchann/apimaster/pkg/apis/abac/v0"
+	v0 "github.com/seanchann/apimaster/pkg/apis/abac/v0"
 	"github.com/seanchann/apimaster/pkg/apis/abac/v1beta1"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -134,7 +135,7 @@ func TestAuthorizeV0(t *testing.T) {
 
 			ResourceRequest: len(tc.NS) > 0 || len(tc.Resource) > 0,
 		}
-		decision, _, _ := a.Authorize(attr)
+		decision, _, _ := a.Authorize(context.TODO(), attr)
 		if tc.ExpectDecision != decision {
 			t.Logf("tc: %v -> attr %v", tc, attr)
 			t.Errorf("%d: Expected allowed=%v but actually allowed=%v\n\t%v",
@@ -452,7 +453,7 @@ func TestAuthorizeV1beta1(t *testing.T) {
 			Path:            tc.Path,
 		}
 		// t.Logf("tc %2v: %v -> attr %v", i, tc, attr)
-		decision, _, _ := a.Authorize(attr)
+		decision, _, _ := a.Authorize(context.TODO(), attr)
 		if tc.ExpectDecision != decision {
 			t.Errorf("%d: Expected allowed=%v but actually allowed=%v, for case %+v & %+v",
 				i, tc.ExpectDecision, decision, tc, attr)

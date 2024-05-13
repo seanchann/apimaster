@@ -17,6 +17,7 @@ limitations under the License.
 package admit
 
 import (
+	"context"
 	"testing"
 
 	"k8s.io/apiserver/pkg/admission"
@@ -32,7 +33,7 @@ import (
 
 func TestAdmissionNilAttribute(t *testing.T) {
 	handler := NewAlwaysAdmit()
-	err := handler.(*alwaysAdmit).Admit(nil)
+	err := handler.(*alwaysAdmit).Admit(context.TODO(), nil, nil)
 	if err != nil {
 		t.Errorf("Unexpected error returned from admission handler")
 	}

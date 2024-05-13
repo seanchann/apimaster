@@ -40,15 +40,16 @@ func BuildInsecureHandlerChain(apiHandler http.Handler, c *server.Config, enable
 	if enableAuth {
 		failedHandler := genericapifilters.Unauthorized(c.Serializer)
 		failedHandler = genericapifilters.WithFailedAuthenticationAudit(failedHandler, c.AuditBackend, c.AuditPolicyRuleEvaluator)
-		handler = genericapifilters.WithAuthentication(handler, c.Authentication.Authenticator, failedHandler, c.Authentication.APIAudiences)
+		handler = genericapifilters.WithAuthentication(handler, c.Authentication.Authenticator,
+			failedHandler, c.Authentication.APIAudiences, c.Authentication.RequestHeaderConfig)
 	} else {
-		handler = genericapifilters.WithAuthentication(handler, server.InsecureSuperuser{}, nil, nil)
+		handler = genericapifilters.WithAuthentication(handler, server.InsecureSuperuser{}, nil, nil, nil)
 	}
 
 	handler = genericfilters.WithCORS(handler, c.CorsAllowedOriginList, nil, nil, nil, "true")
 	handler = genericfilters.WithTimeoutForNonLongRunningRequests(handler, c.LongRunningFunc)
 	handler = genericfilters.WithMaxInFlightLimit(handler, c.MaxRequestsInFlight, c.MaxMutatingRequestsInFlight, c.LongRunningFunc)
-	handler = genericfilters.WithWaitGroup(handler, c.LongRunningFunc, c.HandlerChainWaitGroup)
+	handler = genericfilters.WithWaitGroup(handler, c.LongRunningFunc, c.NonLongRunningRequestWaitGroup)
 	handler = genericapifilters.WithRequestInfo(handler, server.NewRequestInfoResolver(c))
 	handler = genericfilters.WithPanicRecovery(handler, c.RequestInfoResolver)
 
