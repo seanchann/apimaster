@@ -54,7 +54,7 @@ import (
 
 func APIServerRun(opt *options.APIMasterOptions, apiProvider APIServerProvider, stopCh <-chan struct{}) error {
 	// set default options
-	completedOptions, err := Complete(opt)
+	completedOptions, err := Complete(opt, apiProvider)
 	if err != nil {
 		return err
 	}
@@ -343,9 +343,10 @@ type completedServerRunOptions struct {
 
 // Complete set default ServerRunOptions.
 // Should be called after server flags parsed.
-func Complete(s *options.APIMasterOptions) (completedServerRunOptions, error) {
+func Complete(s *options.APIMasterOptions, provider APIServerProvider) (completedServerRunOptions, error) {
 	var options completedServerRunOptions
 	options.APIMasterOptions = s
+	options.apiProvider = provider
 	return options, nil
 }
 
