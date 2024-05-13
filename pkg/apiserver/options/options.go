@@ -42,8 +42,8 @@ var DefaultServiceIPCIDR net.IPNet = net.IPNet{IP: net.ParseIP("10.0.0.0"), Mask
 // DefaultEtcdPathPrefix default key path prefix in etcd
 const DefaultEtcdPathPrefix = "/registry"
 
-// APIServerRunOptions
-type APIServerRunOptions struct {
+// APIMasterOptions
+type APIMasterOptions struct {
 	Backend                 StorageBackendType
 	GenericServerRunOptions *genericoptions.ServerRunOptions
 	Sqlite                  *SqliteOptions
@@ -62,9 +62,9 @@ type APIServerRunOptions struct {
 	Admission               *AdmissionOptions
 }
 
-// NewServerRunOptions new a APIServerRunOptions
-func NewAPIServerRunOptions(admission AdmissionProvider, backend StorageBackendType) *APIServerRunOptions {
-	o := &APIServerRunOptions{
+// NewAPIMasterOptions new a APIMasterOptions
+func NewAPIMasterOptions(admission AdmissionProvider, backend StorageBackendType) *APIMasterOptions {
+	o := &APIMasterOptions{
 		Backend:                 backend,
 		GenericServerRunOptions: genericoptions.NewServerRunOptions(),
 		SecureServing:           NewSecureServingOptions(),
@@ -93,7 +93,7 @@ func NewAPIServerRunOptions(admission AdmissionProvider, backend StorageBackendT
 }
 
 // AddFlags adds flags for a specific APIServer to the specified FlagSet
-func (o *APIServerRunOptions) AddFlags(fss *cliflag.NamedFlagSets) {
+func (o *APIMasterOptions) AddFlags(fss *cliflag.NamedFlagSets) {
 	o.GenericServerRunOptions.AddUniversalFlags(fss.FlagSet("generic"))
 	o.SecureServing.AddFlags(fss.FlagSet("secure serving"))
 	o.InsecureServing.AddFlags(fss.FlagSet("insecure serving"))

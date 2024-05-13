@@ -52,7 +52,7 @@ import (
 	openapicommon "k8s.io/kube-openapi/pkg/common"
 )
 
-func APIServerRun(opt *options.APIServerRunOptions, apiProvider APIServerProvider, stopCh <-chan struct{}) error {
+func APIServerRun(opt *options.APIMasterOptions, apiProvider APIServerProvider, stopCh <-chan struct{}) error {
 	// set default options
 	completedOptions, err := Complete(opt)
 	if err != nil {
@@ -276,7 +276,7 @@ func BuildGenericConfig(s completedServerRunOptions,
 			s.Etcd.StorageConfig.Transport.TracerProvider = oteltrace.NewNoopTracerProvider()
 		}
 	}
-	storageFactory, lastErr := BuildStorageFactory(s.APIServerRunOptions, genericConfig.MergedResourceConfig)
+	storageFactory, lastErr := BuildStorageFactory(s.APIMasterOptions, genericConfig.MergedResourceConfig)
 	if lastErr != nil {
 		return
 	}
@@ -305,7 +305,7 @@ func BuildGenericConfig(s completedServerRunOptions,
 	klog.Infof("Successfully applied configuration authorization")
 	var enablesRBAC bool
 	genericConfig.Authorization.Authorizer, genericConfig.RuleResolver, enablesRBAC,
-		err = BuildAuthorizer(s.APIServerRunOptions, genericConfig.EgressSelector)
+		err = BuildAuthorizer(s.APIMasterOptions, genericConfig.EgressSelector)
 	if err != nil {
 		lastErr = fmt.Errorf("invalid authorization config: %v", err)
 		return
@@ -337,20 +337,20 @@ func BuildGenericConfig(s completedServerRunOptions,
 
 // completedServerRunOptions is a private wrapper that enforces a call of Complete() before Run can be invoked.
 type completedServerRunOptions struct {
-	*options.APIServerRunOptions
+	*options.APIMasterOptions
 	apiProvider APIServerProvider
 }
 
 // Complete set default ServerRunOptions.
 // Should be called after server flags parsed.
-func Complete(s *options.APIServerRunOptions) (completedServerRunOptions, error) {
+func Complete(s *options.APIMasterOptions) (completedServerRunOptions, error) {
 	var options completedServerRunOptions
-	options.APIServerRunOptions = s
+	options.APIMasterOptions = s
 	return options, nil
 }
 
 // BuildAuthorizer constructs the authorizer
-func BuildAuthorizer(s *options.APIServerRunOptions, egressSelector *egressselector.EgressSelector) (authorizer.Authorizer, authorizer.RuleResolver, bool, error) {
+func BuildAuthorizer(s *options.APIMasterOptions, egressSelector *egressselector.EgressSelector) (authorizer.Authorizer, authorizer.RuleResolver, bool, error) {
 	authorizationConfig, err := s.Authorization.ToAuthorizationConfig()
 	if err != nil {
 		return nil, nil, false, err
@@ -378,7 +378,7 @@ func BuildAuthorizer(s *options.APIServerRunOptions, egressSelector *egressselec
 
 // BuildStorageFactory constructs the storage factory. If encryption at rest is used, it expects
 // all supported KMS plugins to be registered in the KMS plugin registry before being called.
-func BuildStorageFactory(s *options.APIServerRunOptions, apiResourceConfig *apiserverstorage.ResourceConfig) (*apiserverstorage.DefaultStorageFactory, error) {
+func BuildStorageFactory(s *options.APIMasterOptions, apiResourceConfig *apiserverstorage.ResourceConfig) (*apiserverstorage.DefaultStorageFactory, error) {
 	storageGroupsToEncodingVersion, err := s.StorageSerialization.StorageGroupsToEncodingVersion()
 	if err != nil {
 		return nil, fmt.Errorf("error generating storage version map: %s", err)
