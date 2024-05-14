@@ -20,7 +20,7 @@ import (
 	"context"
 
 	rbacv1 "github.com/seanchann/apimaster/pkg/apis/rbac/v1"
-	rbacv1client "github.com/seanchann/apimaster/pkg/client/clientset/typed/rbac/v1"
+	rbacv1client "github.com/seanchann/apimaster/pkg/client/generated/clientset/typed/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"

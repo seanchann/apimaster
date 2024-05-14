@@ -53,7 +53,7 @@ import (
 	serverstorage "k8s.io/apiserver/pkg/server/storage"
 
 	clientset "github.com/seanchann/apimaster/pkg/client/clientset"
-	rbacv1client "github.com/seanchann/apimaster/pkg/client/clientset/typed/rbac/v1"
+	rbacv1client "github.com/seanchann/apimaster/pkg/client/generated/clientset/typed/rbac/v1"
 	"k8s.io/client-go/util/retry"
 )
 

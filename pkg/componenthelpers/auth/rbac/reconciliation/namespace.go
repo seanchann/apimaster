@@ -20,7 +20,7 @@ import (
 	"context"
 
 	corev1 "github.com/seanchann/apimaster/pkg/apis/coreres/v1"
-	corev1client "github.com/seanchann/apimaster/pkg/client/clientset/typed/coreres/v1"
+	corev1client "github.com/seanchann/apimaster/pkg/client/generated/clientset/typed/coreres/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"

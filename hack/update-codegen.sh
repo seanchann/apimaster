@@ -38,8 +38,8 @@ BOILERPLATE_FILENAME=${SCRIPT_ROOT}/hack/boilerplate.go.txt
 GENERATED_FILE_PREFIX="${GENERATED_FILE_PREFIX:-zz_generated.}"
 OUT_DIR="output"
 
-CLIENT_OUTPUT_DIR=${SCRIPT_ROOT}/pkg/client
-CLIENT_OUTPUT_PKG="github.com/seanchann/apimaster/pkg/client"
+CLIENT_OUTPUT_DIR=${SCRIPT_ROOT}/pkg/client/generated
+CLIENT_OUTPUT_PKG="github.com/seanchann/apimaster/pkg/client/generated"
 
 CLIENTSET_OUTPUT_DIR=${CLIENT_OUTPUT_DIR}
 CLIENTSET_OUTPUT_PKG=${CLIENT_OUTPUT_PKG}
