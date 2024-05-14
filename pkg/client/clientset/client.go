@@ -20,8 +20,6 @@ import (
 	"fmt"
 	"net/http"
 
-	// "aml.io/rtc/pkg/client/generated/clientset"
-
 	coreresv1 "github.com/seanchann/apimaster/pkg/client/generated/clientset/typed/coreres/v1"
 	rbacv1 "github.com/seanchann/apimaster/pkg/client/generated/clientset/typed/rbac/v1"
 
@@ -35,26 +33,25 @@ type ClientSetProvider[T any] interface {
 	NewForConfigAndClient(c *rest.Config, httpClient *http.Client) (*T, error)
 }
 
-type Interface[T any] interface {
-	*T
+type Interface interface {
 	CoreresV1() coreresv1.CoreresV1Interface
 	RbacV1() rbacv1.RbacV1Interface
 }
 
-// Clientset contains the clients for groups.
-type Clientset[T any] struct {
+// GenericClientset contains the clients for groups.
+type GenericClientset[T any] struct {
 	UserClient *T
 	coreresV1  *coreresv1.CoreresV1Client
 	rbacV1     *rbacv1.RbacV1Client
 }
 
 // CoreresV1 retrieves the CoreresV1Client
-func (c *Clientset[T]) CoreresV1() coreresv1.CoreresV1Interface {
+func (c *GenericClientset[T]) CoreresV1() coreresv1.CoreresV1Interface {
 	return c.coreresV1
 }
 
 // RbacV1 retrieves the RbacV1Client
-func (c *Clientset[T]) RbacV1() rbacv1.RbacV1Interface {
+func (c *GenericClientset[T]) RbacV1() rbacv1.RbacV1Interface {
 	return c.rbacV1
 }
 
@@ -63,7 +60,7 @@ func (c *Clientset[T]) RbacV1() rbacv1.RbacV1Interface {
 // NewForConfig will generate a rate-limiter in configShallowCopy.
 // NewForConfig is equivalent to NewForConfigAndClient(c, httpClient),
 // where httpClient was generated with rest.HTTPClientFor(c).
-func NewForConfig[T any](c *rest.Config, provider ClientSetProvider[T]) (*Clientset[T], error) {
+func NewForConfig[T any](c *rest.Config, provider ClientSetProvider[T]) (*GenericClientset[T], error) {
 	configShallowCopy := *c
 
 	if configShallowCopy.UserAgent == "" {
@@ -83,7 +80,7 @@ func NewForConfig[T any](c *rest.Config, provider ClientSetProvider[T]) (*Client
 // Note the http client provided takes precedence over the configured transport values.
 // If config's RateLimiter is not set and QPS and Burst are acceptable,
 // NewForConfigAndClient will generate a rate-limiter in configShallowCopy.
-func NewForConfigAndClient[T any](c *rest.Config, httpClient *http.Client, provider ClientSetProvider[T]) (*Clientset[T], error) {
+func NewForConfigAndClient[T any](c *rest.Config, httpClient *http.Client, provider ClientSetProvider[T]) (*GenericClientset[T], error) {
 	configShallowCopy := *c
 	if configShallowCopy.RateLimiter == nil && configShallowCopy.QPS > 0 {
 		if configShallowCopy.Burst <= 0 {
@@ -92,7 +89,7 @@ func NewForConfigAndClient[T any](c *rest.Config, httpClient *http.Client, provi
 		configShallowCopy.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(configShallowCopy.QPS, configShallowCopy.Burst)
 	}
 
-	var cs Clientset[T]
+	var cs GenericClientset[T]
 	var err error
 	if provider != nil {
 		gencs, err := provider.NewForConfigAndClient(&configShallowCopy, httpClient)
@@ -116,7 +113,7 @@ func NewForConfigAndClient[T any](c *rest.Config, httpClient *http.Client, provi
 
 // NewForConfigOrDie creates a new Clientset for the given config and
 // panics if there is an error in the config.
-func NewForConfigOrDie[T any](c *rest.Config, provider ClientSetProvider[T]) *Clientset[T] {
+func NewForConfigOrDie[T any](c *rest.Config, provider ClientSetProvider[T]) *GenericClientset[T] {
 	cs, err := NewForConfig[T](c, provider)
 	if err != nil {
 		panic(err)
@@ -125,8 +122,8 @@ func NewForConfigOrDie[T any](c *rest.Config, provider ClientSetProvider[T]) *Cl
 }
 
 // New creates a new Clientset for the given RESTClient.
-func New[T any](c rest.Interface, provider ClientSetProvider[T]) *Clientset[T] {
-	var cs Clientset[T]
+func New[T any](c rest.Interface, provider ClientSetProvider[T]) *GenericClientset[T] {
+	var cs GenericClientset[T]
 	cs.UserClient = provider.New(c)
 
 	cs.coreresV1 = coreresv1.New(c)

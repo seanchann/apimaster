@@ -52,7 +52,7 @@ import (
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	serverstorage "k8s.io/apiserver/pkg/server/storage"
 
-	clientset "github.com/seanchann/apimaster/pkg/client/clientset"
+	clientset "github.com/seanchann/apimaster/pkg/client/generated/clientset"
 	rbacv1client "github.com/seanchann/apimaster/pkg/client/generated/clientset/typed/rbac/v1"
 	"k8s.io/client-go/util/retry"
 )
