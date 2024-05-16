@@ -253,7 +253,7 @@ func BuildGenericConfig(s completedServerRunOptions,
 	getOpenAPIDefinitions = openapi.GetOpenAPIDefinitionsWithoutDisabledFeatures(getOpenAPIDefinitions)
 	namer := openapinamer.NewDefinitionNamer(schemes...)
 	genericConfig.OpenAPIConfig = genericapiserver.DefaultOpenAPIConfig(getOpenAPIDefinitions, namer)
-	genericConfig.OpenAPIConfig.Info.Title = s.apiProvider.APIName() //"SIPDispatch"
+	genericConfig.OpenAPIConfig.Info.Title = s.apiProvider.APIName()
 	genericConfig.OpenAPIV3Config = genericapiserver.DefaultOpenAPIV3Config(getOpenAPIDefinitions, namer)
 	genericConfig.OpenAPIV3Config.Info.Title = s.apiProvider.APIName()
 
