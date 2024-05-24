@@ -137,7 +137,7 @@ func (c completedConfig) New(delegateAPIServer genericapiserver.DelegationTarget
 	}
 
 	restStorageProviders := c.ExtraConfig.RESTStorageProviderBuilder.NewProvider()
-	apiResourceConfigSource := c.ExtraConfig.RESTStorageProviderBuilder.BuildAPIResouceConfigSource()
+	apiResourceConfigSource := c.ExtraConfig.RESTStorageProviderBuilder.BuildAPIResourceConfigSource()
 	gm.InstallAPIs(apiResourceConfigSource, c.GenericConfig.RESTOptionsGetter, restStorageProviders...)
 
 	return gm, nil
@@ -146,7 +146,7 @@ func (c completedConfig) New(delegateAPIServer genericapiserver.DelegationTarget
 // RESTStorageProviderBuilder a builder that construct []RESTStorageProvider for api install
 type RESTStorageProviderBuilder interface {
 	NewProvider() []RESTStorageProvider
-	BuildAPIResouceConfigSource() serverstorage.APIResourceConfigSource
+	BuildAPIResourceConfigSource() serverstorage.APIResourceConfigSource
 }
 
 // RESTStorageProvider is a factory type for REST storage.
