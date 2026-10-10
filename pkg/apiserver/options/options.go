@@ -22,6 +22,8 @@ import (
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
 	"k8s.io/apiserver/pkg/storage/storagebackend"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
 	cliflag "k8s.io/component-base/cli/flag"
 )
 
@@ -50,16 +52,19 @@ type APIMasterOptions struct {
 	Etcd                    *genericoptions.EtcdOptions
 	Mysql                   *MysqlOptions
 	SecureServing           *genericoptions.SecureServingOptionsWithLoopback
-	InsecureServing         *genericoptions.DeprecatedInsecureServingOptions
+	InsecureServing         *DeprecatedInsecureServingOptions
 	Audit                   *genericoptions.AuditOptions
 	Features                *genericoptions.FeatureOptions
-	Authentication          *BuiltInAuthenticationOptions
-	Authorization           *BuiltInAuthorizationOptions
-	StorageSerialization    *StorageSerializationOptions
-	APIEnablement           *genericoptions.APIEnablementOptions
-	EgressSelector          *genericoptions.EgressSelectorOptions
-	Traces                  *genericoptions.TracingOptions
-	Admission               *AdmissionOptions
+	// KubernetesClient and KubernetesInformers must target an API serving flow-control resources when APF is enabled.
+	KubernetesClient     kubernetes.Interface
+	KubernetesInformers  informers.SharedInformerFactory
+	Authentication       *BuiltInAuthenticationOptions
+	Authorization        *BuiltInAuthorizationOptions
+	StorageSerialization *StorageSerializationOptions
+	APIEnablement        *genericoptions.APIEnablementOptions
+	EgressSelector       *genericoptions.EgressSelectorOptions
+	Traces               *genericoptions.TracingOptions
+	Admission            *AdmissionOptions
 }
 
 // NewAPIMasterOptions new a APIMasterOptions
@@ -80,6 +85,8 @@ func NewAPIMasterOptions(admission AdmissionProvider, backend StorageBackendType
 		Admission:               NewAdmissionOptions(admission),
 	}
 
+	// This standalone API does not serve Kubernetes flow-control resources.
+	o.Features.EnablePriorityAndFairness = false
 	switch backend {
 	case StorageBackendTypeSqlite:
 		o.Sqlite = NewSqliteOptions(storagebackend.NewDefaultConfig("sqlite", nil))

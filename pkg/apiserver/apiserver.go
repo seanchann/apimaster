@@ -17,10 +17,12 @@
 package apiserver
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/seanchann/apimaster/pkg/api/legacyscheme"
@@ -29,7 +31,6 @@ import (
 	insecureserver "github.com/seanchann/apimaster/pkg/apiserver/server"
 
 	//k8s dependencies
-	oteltrace "go.opentelemetry.io/otel/trace"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
@@ -37,7 +38,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
 	openapinamer "k8s.io/apiserver/pkg/endpoints/openapi"
-	genericfeatures "k8s.io/apiserver/pkg/features"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/apiserver/pkg/server/egressselector"
 	"k8s.io/apiserver/pkg/server/filters"
@@ -50,6 +50,8 @@ import (
 	k8sclientgoclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	openapicommon "k8s.io/kube-openapi/pkg/common"
+	openapiutil "k8s.io/kube-openapi/pkg/util"
+	"k8s.io/kube-openapi/pkg/validation/spec"
 )
 
 func APIServerRun(opt *options.APIMasterOptions, apiProvider APIServerProvider, stopCh <-chan struct{}) error {
@@ -134,6 +136,16 @@ func CreateServerChain(completedOptions completedServerRunOptions, stopCh <-chan
 		return nil, err
 	}
 
+	success := false
+	var assembledServer *APIServer
+	defer func() {
+		if !success {
+			if assembledServer != nil {
+				assembledServer.GenericAPIServer.Destroy()
+			}
+			apiServerCfg.Close()
+		}
+	}()
 	// setup admission
 	admissionConfig := &apiserveradmission.Config{
 		ExternalInformers:    normalVersionedInformers,
@@ -168,12 +180,13 @@ func CreateServerChain(completedOptions completedServerRunOptions, stopCh <-chan
 	// 	return nil, err
 	// }
 
-	apiServer, err := CreateAPIServer(apiServerCfg, genericapiserver.NewEmptyDelegate(), nil)
+	apiServer, err := CreateAPIServer(apiServerCfg, genericapiserver.NewEmptyDelegate(), completedOptions.KubernetesInformers)
 	// apiServer, err := CreateAPIServer(apiServerCfg, genericapiserver.NewEmptyDelegate(), versionedInformers)
 	if err != nil {
 		return nil, err
 	}
 
+	assembledServer = apiServer
 	if insecureServingInfo != nil {
 		insecureHandlerChain := insecureserver.BuildInsecureHandlerChain(apiServer.GenericAPIServer.UnprotectedHandler(),
 			apiServerCfg.GenericConfig, true)
@@ -182,6 +195,7 @@ func CreateServerChain(completedOptions completedServerRunOptions, stopCh <-chan
 		}
 	}
 
+	success = true
 	return apiServer.GenericAPIServer, nil
 }
 
@@ -197,6 +211,27 @@ func BuildGenericConfig(s completedServerRunOptions,
 ) {
 
 	genericConfig := genericapiserver.NewConfig(legacyscheme.Codecs)
+	lifecycleContext, cancelLifecycle := context.WithCancel(context.Background())
+	var cleanupOnce sync.Once
+	cleanup := func() {
+		cleanupOnce.Do(func() {
+			cancelLifecycle()
+			if closer, ok := genericConfig.RESTOptionsGetter.(interface{ Close() error }); ok {
+				closer.Close()
+			}
+			if genericConfig.SecureServing != nil && genericConfig.SecureServing.Listener != nil {
+				genericConfig.SecureServing.Listener.Close()
+			}
+			if insecureServingInfo != nil && insecureServingInfo.Listener != nil {
+				insecureServingInfo.Listener.Close()
+			}
+		})
+	}
+	defer func() {
+		if lastErr != nil {
+			cleanup()
+		}
+	}()
 
 	if lastErr = s.GenericServerRunOptions.ApplyTo(genericConfig); lastErr != nil {
 		return
@@ -237,24 +272,55 @@ func BuildGenericConfig(s completedServerRunOptions,
 		return
 	}
 
-	if lastErr = s.Features.ApplyTo(genericConfig); lastErr != nil {
+	if lastErr = s.ApplyFeaturesTo(genericConfig); lastErr != nil {
 		return
 	}
 	if lastErr = s.EgressSelector.ApplyTo(genericConfig); lastErr != nil {
 		return
 	}
-	if utilfeature.DefaultFeatureGate.Enabled(genericfeatures.APIServerTracing) {
-		if lastErr = s.Traces.ApplyTo(genericConfig.EgressSelector, genericConfig); lastErr != nil {
-			return
-		}
+	if lastErr = s.Traces.ApplyTo(genericConfig.EgressSelector, genericConfig); lastErr != nil {
+		return
 	}
 
 	// wrap the definitions to revert any changes from disabled features
 	getOpenAPIDefinitions = openapi.GetOpenAPIDefinitionsWithoutDisabledFeatures(getOpenAPIDefinitions)
+	// Adapt generated canonical keys to the native Scheme's GVK metadata names.
+	// Keep schema keys and references unchanged, including explicit model names.
+	canonicalNames := make(map[string]string)
+	for _, scheme := range schemes {
+		for kind := range scheme.AllKnownTypes() {
+			model, err := scheme.New(kind)
+			if err != nil {
+				lastErr = fmt.Errorf("resolve OpenAPI model for %s: %w", kind, err)
+				return
+			}
+			nativeName, err := scheme.ToOpenAPIDefinitionName(kind)
+			if err != nil {
+				lastErr = fmt.Errorf("resolve OpenAPI definition name for %s: %w", kind, err)
+				return
+			}
+			canonicalName := openapiutil.GetCanonicalTypeName(model)
+			if previous, exists := canonicalNames[canonicalName]; exists && previous != nativeName {
+				lastErr = fmt.Errorf("OpenAPI canonical name %q maps to both %q and %q", canonicalName, previous, nativeName)
+				return
+			}
+			canonicalNames[canonicalName] = nativeName
+		}
+	}
 	namer := openapinamer.NewDefinitionNamer(schemes...)
+	getDefinitionName := func(name string) (string, spec.Extensions) {
+		lookup := name
+		if nativeName, exists := canonicalNames[name]; exists {
+			lookup = nativeName
+		}
+		_, extensions := namer.GetDefinitionName(lookup)
+		return name, extensions
+	}
 	genericConfig.OpenAPIConfig = genericapiserver.DefaultOpenAPIConfig(getOpenAPIDefinitions, namer)
+	genericConfig.OpenAPIConfig.GetDefinitionName = getDefinitionName
 	genericConfig.OpenAPIConfig.Info.Title = s.apiProvider.APIName() //"SIPDispatch"
 	genericConfig.OpenAPIV3Config = genericapiserver.DefaultOpenAPIV3Config(getOpenAPIDefinitions, namer)
+	genericConfig.OpenAPIV3Config.GetDefinitionName = getDefinitionName
 	genericConfig.OpenAPIV3Config.Info.Title = s.apiProvider.APIName()
 
 	genericConfig.LongRunningFunc = filters.BasicLongRunningRequestCheck(
@@ -262,7 +328,8 @@ func BuildGenericConfig(s completedServerRunOptions,
 		sets.NewString("attach", "exec", "proxy", "log", "portforward"),
 	)
 
-	genericConfig.Version = s.apiProvider.Version()
+	genericConfig.OpenAPIConfig.Info.Version = s.apiProvider.Version().GitVersion
+	genericConfig.OpenAPIV3Config.Info.Version = s.apiProvider.Version().GitVersion
 
 	// only for etcd
 	if s.Backend == options.StorageBackendTypeEtcd {
@@ -270,11 +337,7 @@ func BuildGenericConfig(s completedServerRunOptions,
 		if genericConfig.EgressSelector != nil {
 			s.Etcd.StorageConfig.Transport.EgressLookup = genericConfig.EgressSelector.Lookup
 		}
-		if utilfeature.DefaultFeatureGate.Enabled(genericfeatures.APIServerTracing) {
-			s.Etcd.StorageConfig.Transport.TracerProvider = genericConfig.TracerProvider
-		} else {
-			s.Etcd.StorageConfig.Transport.TracerProvider = oteltrace.NewNoopTracerProvider()
-		}
+		s.Etcd.StorageConfig.Transport.TracerProvider = genericConfig.TracerProvider
 	}
 	storageFactory, lastErr := BuildStorageFactory(s.APIMasterOptions, genericConfig.MergedResourceConfig)
 	if lastErr != nil {
@@ -296,7 +359,7 @@ func BuildGenericConfig(s completedServerRunOptions,
 	}
 
 	klog.Infof("Successfully applied configuration authentication")
-	if lastErr = s.Authentication.ApplyTo(&genericConfig.Authentication,
+	if lastErr = s.Authentication.ApplyToWithContext(lifecycleContext, &genericConfig.Authentication,
 		genericConfig.SecureServing, genericConfig.EgressSelector,
 		genericConfig.OpenAPIConfig, genericConfig.OpenAPIV3Config); lastErr != nil {
 		return
@@ -307,7 +370,7 @@ func BuildGenericConfig(s completedServerRunOptions,
 	genericConfig.Authorization.Authorizer, genericConfig.RuleResolver, enablesRBAC,
 		err = BuildAuthorizer(s.APIMasterOptions, genericConfig.EgressSelector)
 	if err != nil {
-		lastErr = fmt.Errorf("invalid authorization config: %v", err)
+		lastErr = fmt.Errorf("invalid authorization config: %w", err)
 		return
 	}
 	if s.Authorization != nil && !enablesRBAC {
@@ -323,9 +386,11 @@ func BuildGenericConfig(s completedServerRunOptions,
 
 	config = &Config{
 		GenericConfig: genericConfig,
+		cleanup:       cleanup,
 		ExtraConfig:   ExtraConfig{},
 	}
 
+	config.ExtraConfig.APIServerName = s.apiProvider.APIName()
 	config.ExtraConfig.ExtendRoutesFunc = s.apiProvider.DefaultInstallExtendRoutes
 	config.ExtraConfig.ControllerConfig.NewFunc = s.apiProvider.NewControllerProvider
 	//append our private parameter for controller
@@ -344,6 +409,16 @@ type completedServerRunOptions struct {
 // Complete set default ServerRunOptions.
 // Should be called after server flags parsed.
 func Complete(s *options.APIMasterOptions, provider APIServerProvider) (completedServerRunOptions, error) {
+	if s == nil || provider == nil {
+		return completedServerRunOptions{}, fmt.Errorf("options and API provider are required")
+	}
+	if err := s.GenericServerRunOptions.Complete(); err != nil {
+		return completedServerRunOptions{}, err
+	}
+	if errs := s.Authorization.Complete(); len(errs) > 0 {
+		return completedServerRunOptions{}, utilerrors.NewAggregate(errs)
+	}
+	s.Authentication.ApplyAuthorization(s.Authorization)
 	var options completedServerRunOptions
 	options.APIMasterOptions = s
 	options.apiProvider = provider
@@ -370,7 +445,7 @@ func BuildAuthorizer(s *options.APIMasterOptions, egressSelector *egressselector
 
 	authorizer, ruleResolver, err := authorizationConfig.New()
 	if err != nil {
-		klog.Infof("error building authorizer: %v", err)
+		return nil, nil, false, err
 	}
 
 	//always return false， because we don't want to use the internal rbac

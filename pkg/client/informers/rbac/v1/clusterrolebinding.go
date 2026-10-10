@@ -19,25 +19,54 @@
 package v1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
+	apisrbacv1 "github.com/seanchann/apimaster/pkg/apis/rbac/v1"
 	clientset "github.com/seanchann/apimaster/pkg/client/clientset"
 	internalinterfaces "github.com/seanchann/apimaster/pkg/client/informers/internalinterfaces"
-	v1 "github.com/seanchann/apimaster/pkg/client/listers/rbac/v1"
-	rbacv1 "github.com/seanchann/apimaster/pkg/apis/rbac/v1"
+	rbacv1 "github.com/seanchann/apimaster/pkg/client/listers/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
+	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
 )
 
 // ClusterRoleBindingInformer provides access to a shared informer and lister for
-// ClusterRoleBindings.
+// ClusterRoleBindings. Prefer using the type-safe variant (see [TypedClusterRoleBindingInformer]).
 type ClusterRoleBindingInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.ClusterRoleBindingLister
+	Lister() rbacv1.ClusterRoleBindingLister
 }
+
+// TypedClusterRoleBindingInformer provides access to a shared informer and lister for
+// ClusterRoleBindings, including the type-safe TypedInformer variant.
+// It is a superset of ClusterRoleBindingInformer.
+type TypedClusterRoleBindingInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() ClusterRoleBindingIndexInformer
+	Lister() rbacv1.ClusterRoleBindingLister
+}
+
+// ClusterRoleBindingIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type ClusterRoleBindingIndexInformer cache.TypedSharedIndexInformer[*apisrbacv1.ClusterRoleBinding]
+
+// ClusterRoleBindingHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for ClusterRoleBinding.
+type ClusterRoleBindingHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apisrbacv1.ClusterRoleBinding]
+
+// ClusterRoleBindingDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for ClusterRoleBinding.
+type ClusterRoleBindingDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apisrbacv1.ClusterRoleBinding]
+
+// ClusterRoleBindingFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for ClusterRoleBinding.
+type ClusterRoleBindingFilteringHandler = cache.TypedFilteringResourceEventHandler[*apisrbacv1.ClusterRoleBinding]
+
+// ClusterRoleBindingIndexers is a specialization of [cache.TypedIndexers] for ClusterRoleBinding.
+type ClusterRoleBindingIndexers = cache.TypedIndexers[*apisrbacv1.ClusterRoleBinding]
+
+// DeletedClusterRoleBinding is a specialization of [cache.DeletedObject] for ClusterRoleBinding.
+type DeletedClusterRoleBinding = cache.DeletedObject[*apisrbacv1.ClusterRoleBinding]
 
 type clusterRoleBindingInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -47,43 +76,132 @@ type clusterRoleBindingInformer struct {
 // NewClusterRoleBindingInformer constructs a new informer for ClusterRoleBinding type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedClusterRoleBindingInformer]).
 func NewClusterRoleBindingInformer(client clientset.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredClusterRoleBindingInformer(client, resyncPeriod, indexers, nil)
+	return NewClusterRoleBindingInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedClusterRoleBindingInformer constructs a new informer for ClusterRoleBinding type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedClusterRoleBindingInformer(client clientset.Interface, resyncPeriod time.Duration, indexers ClusterRoleBindingIndexers) ClusterRoleBindingIndexInformer {
+	return NewTypedClusterRoleBindingInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredClusterRoleBindingInformer constructs a new informer for ClusterRoleBinding type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredClusterRoleBindingInformer]).
 func NewFilteredClusterRoleBindingInformer(client clientset.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return cache.NewSharedIndexInformer(
-		&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+	return NewTypedClusterRoleBindingInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredClusterRoleBindingInformer constructs a new informer for ClusterRoleBinding type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredClusterRoleBindingInformer(client clientset.Interface, resyncPeriod time.Duration, indexers ClusterRoleBindingIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) ClusterRoleBindingIndexInformer {
+	return NewTypedClusterRoleBindingInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
+}
+
+// NewClusterRoleBindingInformerWithOptions constructs a new informer for ClusterRoleBinding type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedClusterRoleBindingInformerWithOptions]).
+func NewClusterRoleBindingInformerWithOptions(client clientset.Interface, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedClusterRoleBindingInformerWithOptions(client, options)
+}
+
+// NewTypedClusterRoleBindingInformerWithOptions constructs a new informer for ClusterRoleBinding type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedClusterRoleBindingInformerWithOptions(client clientset.Interface, options internalinterfaces.InformerOptions) ClusterRoleBindingIndexInformer {
+	gvr := schema.GroupVersionResource{Group: "rbac", Version: "v1", Resource: "clusterrolebindings"}
+	identifier := options.InformerName.WithResource(gvr)
+	tweakListOptions := options.TweakListOptions
+	return cache.NewTypedSharedIndexInformer[*apisrbacv1.ClusterRoleBinding](cache.NewSharedIndexInformerWithOptions(
+		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
+			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.RbacV1().ClusterRoleBindings().List(context.TODO(), options)
+				return client.RbacV1().ClusterRoleBindings().List(context.Background(), opts)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.RbacV1().ClusterRoleBindings().Watch(context.TODO(), options)
+				return client.RbacV1().ClusterRoleBindings().Watch(context.Background(), opts)
 			},
+			ListWithContextFunc: func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&opts)
+				}
+				return client.RbacV1().ClusterRoleBindings().List(ctx, opts)
+			},
+			WatchFuncWithContext: func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&opts)
+				}
+				return client.RbacV1().ClusterRoleBindings().Watch(ctx, opts)
+			},
+		}, client),
+		&apisrbacv1.ClusterRoleBinding{},
+		cache.SharedIndexInformerOptions{
+			ResyncPeriod: options.ResyncPeriod,
+			Indexers:     options.Indexers,
+			Identifier:   identifier,
 		},
-		&rbacv1.ClusterRoleBinding{},
-		resyncPeriod,
-		indexers,
-	)
+	))
 }
 
 func (f *clusterRoleBindingInformer) defaultInformer(client clientset.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredClusterRoleBindingInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+	return NewTypedClusterRoleBindingInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *clusterRoleBindingInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&rbacv1.ClusterRoleBinding{}, f.defaultInformer)
+	return f.TypedInformer()
 }
 
-func (f *clusterRoleBindingInformer) Lister() v1.ClusterRoleBindingLister {
-	return v1.NewClusterRoleBindingLister(f.Informer().GetIndexer())
+func (f *clusterRoleBindingInformer) TypedInformer() ClusterRoleBindingIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisrbacv1.ClusterRoleBinding](f.factory.InformerFor(&apisrbacv1.ClusterRoleBinding{}, f.defaultInformer))
+}
+
+func (f *clusterRoleBindingInformer) Lister() rbacv1.ClusterRoleBindingLister {
+	return rbacv1.NewClusterRoleBindingLister(f.Informer().GetIndexer())
+}
+
+// ToTypedClusterRoleBindingInformer converts an untyped informer into a TypedClusterRoleBindingInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *ClusterRoleBinding. If that is not the case, calling type-safe methods of the returned
+// TypedClusterRoleBindingInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedClusterRoleBindingInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedClusterRoleBindingInformer(informer ClusterRoleBindingInformer) TypedClusterRoleBindingInformer {
+	if informer, ok := informer.(TypedClusterRoleBindingInformer); ok {
+		return informer
+	}
+	return &clusterRoleBindingTypedInformerAdapter{informer}
+}
+
+type clusterRoleBindingTypedInformerAdapter struct {
+	ClusterRoleBindingInformer
+}
+
+func (a *clusterRoleBindingTypedInformerAdapter) TypedInformer() ClusterRoleBindingIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisrbacv1.ClusterRoleBinding](a.Informer())
+}
+
+// ToClusterRoleBindingIndexInformer converts an untyped informer into a ClusterRoleBindingIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *ClusterRoleBinding. If that is not the case, calling type-safe methods of the returned
+// ClusterRoleBindingIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a ClusterRoleBindingIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToClusterRoleBindingIndexInformer(informer cache.SharedIndexInformer) ClusterRoleBindingIndexInformer {
+	if informer, ok := informer.(ClusterRoleBindingIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apisrbacv1.ClusterRoleBinding](informer)
 }

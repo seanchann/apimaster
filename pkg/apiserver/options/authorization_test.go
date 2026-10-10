@@ -151,6 +151,7 @@ func TestBuiltInAuthorizationOptionsAddFlags(t *testing.T) {
 	}
 
 	expected := &BuiltInAuthorizationOptions{
+		WebhookAPIPath:              "/apis/auth/authorization",
 		Modes:                       []string{modes.ModeAlwaysAllow, modes.ModeAlwaysDeny, modes.ModeABAC, modes.ModeWebhook},
 		PolicyFile:                  "policy_file.json",
 		WebhookConfigFile:           "webhook_config_file.yaml",

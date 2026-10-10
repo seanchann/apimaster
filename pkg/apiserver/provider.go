@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/emicklei/go-restful/v3"
-	"k8s.io/apimachinery/pkg/version"
 	apimachineryversion "k8s.io/apimachinery/pkg/version"
 	"k8s.io/apiserver/pkg/registry/generic"
 	genericapiserver "k8s.io/apiserver/pkg/server"
@@ -73,11 +72,13 @@ type ExtraConfig struct {
 type Config struct {
 	GenericConfig *genericapiserver.Config
 	ExtraConfig   ExtraConfig
+	cleanup       func()
 }
 
 type completedConfig struct {
 	GenericConfig genericapiserver.CompletedConfig
 	ExtraConfig   *ExtraConfig
+	cleanup       func()
 }
 
 // CompletedConfig complete config
@@ -91,28 +92,47 @@ type APIServer struct {
 	GenericAPIServer *genericapiserver.GenericAPIServer
 }
 
+// Close releases resources held by a built configuration before ownership transfers to a server.
+func (cfg *Config) Close() {
+	if cfg != nil && cfg.cleanup != nil {
+		cfg.cleanup()
+	}
+}
+
 // Complete fills in any fields not set that are required to have valid data. It's mutating the receiver.
 func (cfg *Config) Complete(informers informers.SharedInformerFactory) CompletedConfig {
 	c := completedConfig{
 		cfg.GenericConfig.Complete(informers),
 		&cfg.ExtraConfig,
-	}
-
-	c.GenericConfig.Version = &version.Info{
-		Major: "1",
-		Minor: "0",
+		cfg.cleanup,
 	}
 
 	return CompletedConfig{&c}
 }
 
 // New returns a new instance of WardleServer from the given config.
-func (c completedConfig) New(delegateAPIServer genericapiserver.DelegationTarget) (*APIServer, error) {
-	genericServer, err := c.GenericConfig.New(c.ExtraConfig.APIServerName, genericapiserver.NewEmptyDelegate())
+func (c completedConfig) New(delegateAPIServer genericapiserver.DelegationTarget) (result *APIServer, resultError error) {
+	defer func() {
+		if resultError != nil && c.cleanup != nil {
+			c.cleanup()
+		}
+	}()
+	genericServer, err := c.GenericConfig.New(c.ExtraConfig.APIServerName, delegateAPIServer)
 	if err != nil {
 		return nil, err
 	}
 
+	if c.cleanup != nil {
+		genericServer.RegisterDestroyFunc(c.cleanup)
+	}
+	if closer, ok := c.GenericConfig.RESTOptionsGetter.(interface{ Close() error }); ok {
+		genericServer.RegisterDestroyFunc(func() { closer.Close() })
+	}
+	defer func() {
+		if resultError != nil {
+			genericServer.Destroy()
+		}
+	}()
 	if c.ExtraConfig.ExtendRoutesFunc != nil {
 		c.ExtraConfig.ExtendRoutesFunc(genericServer.Handler.GoRestfulContainer)
 	}
@@ -121,15 +141,22 @@ func (c completedConfig) New(delegateAPIServer genericapiserver.DelegationTarget
 		GenericAPIServer: genericServer,
 	}
 
-	//add user config hook first
+	// Construct the controller and return errors before exposing an incomplete server.
 	if c.ExtraConfig.ControllerConfig.NewFunc != nil {
-		if provider, err := c.ExtraConfig.ControllerConfig.NewFunc(c.ExtraConfig.ControllerConfig.NewParameters); err == nil {
-			controllerName := provider.Name()
-			gm.GenericAPIServer.AddPostStartHookOrDie(controllerName, provider.PostFunc())
-			gm.GenericAPIServer.AddPreShutdownHookOrDie(controllerName, provider.PreShutdownFunc())
-
-			c.ExtraConfig.RESTStorageProviderBuilder = provider.RESTStorageProviderBuilderHandle()
+		provider, err := c.ExtraConfig.ControllerConfig.NewFunc(c.ExtraConfig.ControllerConfig.NewParameters)
+		if err != nil {
+			return nil, err
 		}
+		if provider == nil {
+			return nil, fmt.Errorf("controller provider is required")
+		}
+		if err = gm.GenericAPIServer.AddPostStartHook(provider.Name(), provider.PostFunc()); err != nil {
+			return nil, err
+		}
+		if err = gm.GenericAPIServer.AddPreShutdownHook(provider.Name(), provider.PreShutdownFunc()); err != nil {
+			return nil, err
+		}
+		c.ExtraConfig.RESTStorageProviderBuilder = provider.RESTStorageProviderBuilderHandle()
 	}
 
 	if c.ExtraConfig.RESTStorageProviderBuilder == nil {
@@ -138,7 +165,9 @@ func (c completedConfig) New(delegateAPIServer genericapiserver.DelegationTarget
 
 	restStorageProviders := c.ExtraConfig.RESTStorageProviderBuilder.NewProvider()
 	apiResourceConfigSource := c.ExtraConfig.RESTStorageProviderBuilder.BuildAPIResouceConfigSource()
-	gm.InstallAPIs(apiResourceConfigSource, c.GenericConfig.RESTOptionsGetter, restStorageProviders...)
+	if err := gm.InstallAPIs(apiResourceConfigSource, c.GenericConfig.RESTOptionsGetter, restStorageProviders...); err != nil {
+		return nil, err
+	}
 
 	return gm, nil
 }
@@ -156,9 +185,7 @@ type RESTStorageProvider interface {
 }
 
 // InstallAPIs will install the APIs for the restStorageProviders if they are enabled.
-func (m *APIServer) InstallAPIs(apiResourceConfigSource serverstorage.APIResourceConfigSource, restOptionsGetter generic.RESTOptionsGetter, restStorageProviders ...RESTStorageProvider) {
-	apiGroupsInfo := []genericapiserver.APIGroupInfo{}
-
+func (m *APIServer) InstallAPIs(apiResourceConfigSource serverstorage.APIResourceConfigSource, restOptionsGetter generic.RESTOptionsGetter, restStorageProviders ...RESTStorageProvider) error {
 	for _, restStorageBuilder := range restStorageProviders {
 		groupName := restStorageBuilder.GroupName()
 		if !apiResourceConfigSource.AnyResourceForGroupEnabled(groupName) {
@@ -166,28 +193,38 @@ func (m *APIServer) InstallAPIs(apiResourceConfigSource serverstorage.APIResourc
 			continue
 		}
 		apiGroupInfo, err := restStorageBuilder.NewRESTStorage(apiResourceConfigSource, restOptionsGetter)
+		installed := false
+		// Until installation succeeds, this function owns every returned storage.
+		defer func() {
+			if !installed {
+				for _, resources := range apiGroupInfo.VersionedResourcesStorageMap {
+					for _, storage := range resources {
+						storage.Destroy()
+					}
+				}
+			}
+		}()
 		if err != nil {
-			klog.Warningf("Problem initializing API group %q, skipping.", groupName)
-			continue
+			return fmt.Errorf("initialize API group %q: %w", groupName, err)
 		}
 		klog.V(1).Infof("Enabling API group %q.", groupName)
 
 		if postHookProvider, ok := restStorageBuilder.(genericapiserver.PostStartHookProvider); ok {
 			name, hook, err := postHookProvider.PostStartHook()
 			if err != nil {
-				klog.Fatalf("Error building PostStartHook: %v", err)
+				return fmt.Errorf("build API group hook: %w", err)
 			}
-			m.GenericAPIServer.AddPostStartHookOrDie(name, hook)
+			if err = m.GenericAPIServer.AddPostStartHook(name, hook); err != nil {
+				return err
+			}
 		}
 
-		apiGroupsInfo = append(apiGroupsInfo, apiGroupInfo)
-	}
-
-	for i := range apiGroupsInfo {
-		if err := m.GenericAPIServer.InstallAPIGroup(&apiGroupsInfo[i]); err != nil {
-			klog.Fatalf("Error in registering group versions: %v", err)
+		if err := m.GenericAPIServer.InstallAPIGroup(&apiGroupInfo); err != nil {
+			return fmt.Errorf("register API group: %w", err)
 		}
+		installed = true
 	}
+	return nil
 }
 
 // APIServerProvider is an interface for APIServer to provide server information

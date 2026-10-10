@@ -79,7 +79,7 @@ func NewAdmissionOptions(provider AdmissionProvider) *AdmissionOptions {
 	// set RecommendedPluginOrder
 	options.RecommendedPluginOrder = provider.AllPluginOrder()
 	// set DefaultOffPlugins
-	options.DefaultOffPlugins = provider.DefaultOffAdmissionPlugins()
+	options.DefaultOffPlugins = sets.New(provider.DefaultOffAdmissionPlugins().List()...)
 
 	return &AdmissionOptions{
 		GenericAdmission: options,
@@ -201,7 +201,7 @@ func (a *AdmissionOptions) apiserverApplyTo(
 // EnablePlugins, DisablePlugins fields
 // to prepare a list of ordered plugin names that are enabled.
 func (a *AdmissionOptions) enabledPluginNames() []string {
-	allOffPlugins := append(a.GenericAdmission.DefaultOffPlugins.List(),
+	allOffPlugins := append(sets.List(a.GenericAdmission.DefaultOffPlugins),
 		a.GenericAdmission.DisablePlugins...)
 	disabledPlugins := sets.NewString(allOffPlugins...)
 	enabledPlugins := sets.NewString(a.GenericAdmission.EnablePlugins...)

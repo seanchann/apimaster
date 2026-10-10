@@ -18,11 +18,11 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"k8s.io/klog"
 	"github.com/seanchann/apimaster/pkg/swaggerdoc/options"
+	"k8s.io/klog"
 )
 
-//GenerateDoc generate swagger doc by options
+// GenerateDoc generate swagger doc by options
 // visit https://github.com/emicklei/go-restful-swagger12 for detail
 func GenerateDoc(o *options.SwaggerDocOptions) {
 	if o.TypeSrc == "" {
@@ -72,7 +72,11 @@ func GenerateDoc(o *options.SwaggerDocOptions) {
 	`
 	io.WriteString(funcOut, comment)
 
-	docsForTypes := runtime.ParseDocumentationFrom(o.TypeSrc)
+	docsForTypes, err := runtime.ParseDocumentationFrom(o.TypeSrc)
+	if err != nil {
+		klog.Errorf("Unable to parse API type documentation: %v", err)
+		return
+	}
 
 	if o.Verify == true {
 		rc, err := runtime.VerifySwaggerDocsExist(docsForTypes, funcOut)

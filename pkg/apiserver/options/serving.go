@@ -40,8 +40,8 @@ func NewSecureServingOptions() *genericoptions.SecureServingOptionsWithLoopback 
 
 // NewInsecureServingOptions is for creating an unauthenticated, unauthorized, insecure port.
 // No one should be using these anymore.
-func NewInsecureServingOptions() *genericoptions.DeprecatedInsecureServingOptions {
-	o := &genericoptions.DeprecatedInsecureServingOptions{
+func NewInsecureServingOptions() *DeprecatedInsecureServingOptions {
+	o := &DeprecatedInsecureServingOptions{
 		BindAddress: net.ParseIP("127.0.0.1"),
 		BindPort:    8080,
 	}

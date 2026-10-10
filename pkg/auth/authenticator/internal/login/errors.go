@@ -39,8 +39,8 @@ func (e errLoginAuthFailed) Error() string {
 func (e errLoginAuthFailed) Status() string {
 	status := metav1.Status{
 		Status:  metav1.StatusFailure,
-		Code:    http.StatusForbidden,
-		Reason:  metav1.StatusReasonForbidden,
+		Code:    http.StatusUnauthorized,
+		Reason:  metav1.StatusReasonUnauthorized,
 		Message: e.Error(),
 	}
 
@@ -53,8 +53,8 @@ type errLogoutFailed struct {
 	message string
 }
 
-func NewLogoutError() errLoginAuthFailed {
-	return errLoginAuthFailed{message: "user or token is incorrect"}
+func NewLogoutError() errLogoutFailed {
+	return errLogoutFailed{message: "user or token is incorrect"}
 }
 
 func (e errLogoutFailed) Error() string {
@@ -64,8 +64,8 @@ func (e errLogoutFailed) Error() string {
 func (e errLogoutFailed) Status() string {
 	status := metav1.Status{
 		Status:  metav1.StatusFailure,
-		Code:    http.StatusUnprocessableEntity,
-		Reason:  metav1.StatusReasonInvalid,
+		Code:    http.StatusForbidden,
+		Reason:  metav1.StatusReasonForbidden,
 		Message: e.Error(),
 	}
 

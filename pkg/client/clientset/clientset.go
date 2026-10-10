@@ -19,8 +19,8 @@
 package clientset
 
 import (
-	"fmt"
-	"net/http"
+	fmt "fmt"
+	http "net/http"
 
 	coreresv1 "github.com/seanchann/apimaster/pkg/client/clientset/typed/coreres/v1"
 	rbacv1 "github.com/seanchann/apimaster/pkg/client/clientset/typed/rbac/v1"
@@ -30,7 +30,7 @@ import (
 )
 
 type Interface interface {
-	Discovery() discovery.DiscoveryInterface
+	Discovery() discovery.DiscoveryInterfaces
 	CoreresV1() coreresv1.CoreresV1Interface
 	RbacV1() rbacv1.RbacV1Interface
 }
@@ -53,7 +53,7 @@ func (c *Clientset) RbacV1() rbacv1.RbacV1Interface {
 }
 
 // Discovery retrieves the DiscoveryClient
-func (c *Clientset) Discovery() discovery.DiscoveryInterface {
+func (c *Clientset) Discovery() discovery.DiscoveryInterfaces {
 	if c == nil {
 		return nil
 	}

@@ -68,7 +68,7 @@ func (la *LoginAuth) JWTTokenHandler() restful.RouteFunction {
 func (la *LoginAuth) Validate(token string) (*auth.UserInfo, error) {
 	sess := la.jwtAuth.Validate(token)
 	if sess == nil {
-		return nil, fmt.Errorf("invalid token with user=%v", sess.Username)
+		return nil, fmt.Errorf("invalid token")
 	}
 
 	user := &auth.UserInfo{

@@ -17,6 +17,8 @@ limitations under the License.
 package options
 
 import (
+	"encoding/pem"
+	"net/http/httptest"
 	"os"
 	"reflect"
 	"strings"
@@ -33,10 +35,7 @@ import (
 	"k8s.io/apiserver/pkg/authentication/authenticator"
 	"k8s.io/apiserver/pkg/authentication/authenticatorfactory"
 	"k8s.io/apiserver/pkg/authentication/request/headerrequest"
-	"k8s.io/apiserver/pkg/features"
 	apiserveroptions "k8s.io/apiserver/pkg/server/options"
-	utilfeature "k8s.io/apiserver/pkg/util/feature"
-	featuregatetesting "k8s.io/component-base/featuregate/testing"
 	"k8s.io/utils/pointer"
 )
 
@@ -210,9 +209,9 @@ func TestAuthenticationValidate(t *testing.T) {
 			expectErr: "number of webhook retry attempts must be greater than 0, but is: 0",
 		},
 		{
-			name:                         "test when authentication config file is set without feature gate",
+			name:                         "authentication configuration is available without a retired feature gate",
 			testAuthenticationConfigFile: "configfile",
-			expectErr:                    "set --feature-gates=StructuredAuthenticationConfiguration=true to use authentication-config file",
+			expectErr:                    "",
 		},
 		{
 			name:                         "test when authentication config file and oidc-* flags are set",
@@ -248,22 +247,47 @@ func TestAuthenticationValidate(t *testing.T) {
 }
 
 func TestToAuthenticationConfig(t *testing.T) {
+	fixture := httptest.NewTLSServer(nil)
+	certificate := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: fixture.Certificate().Raw})
+	fixture.Close()
+	temporaryParent := os.Getenv("APIMASTER_TEST_TMPDIR")
+	if temporaryParent == "" {
+		temporaryParent = "/tmp/easehold-upstream-storage"
+	}
+	if err := os.MkdirAll(temporaryParent, 0755); err != nil {
+		t.Fatal(err)
+	}
+	caFile, err := os.CreateTemp(temporaryParent, "am-public-ca-*.pem")
+	if err != nil {
+		t.Fatal(err)
+	}
+	caPath := caFile.Name()
+	t.Cleanup(func() { os.Remove(caPath) })
+	if _, err = caFile.Write(certificate); err != nil {
+		caFile.Close()
+		t.Fatal(err)
+	}
+	if err = caFile.Close(); err != nil {
+		t.Fatal(err)
+	}
+
 	testOptions := &BuiltInAuthenticationOptions{
 		Anonymous: &AnonymousAuthenticationOptions{
 			Allow: false,
 		},
 		ClientCert: &apiserveroptions.ClientCertAuthenticationOptions{
-			ClientCA: "testdata/root.pem",
+			ClientCA: caPath,
 		},
 		WebHook: &WebHookAuthenticationOptions{
-			CacheTTL:   180000000000,
-			ConfigFile: "/token-webhook-config",
+			CacheTTL: 180000000000,
+			Host:     "https://webhook.example",
+			APIPath:  "/apis/authentication",
 		},
 		BootstrapToken: &BootstrapTokenAuthenticationOptions{
 			Enable: false,
 		},
 		OIDC: &OIDCAuthenticationOptions{
-			CAFile:        "testdata/root.pem",
+			CAFile:        caPath,
 			UsernameClaim: "sub",
 			SigningAlgs:   []string{"RS256"},
 			IssuerURL:     "https://testIssuerURL",
@@ -273,7 +297,7 @@ func TestToAuthenticationConfig(t *testing.T) {
 			UsernameHeaders:     []string{"x-remote-user"},
 			GroupHeaders:        []string{"x-remote-group"},
 			ExtraHeaderPrefixes: []string{"x-remote-extra-"},
-			ClientCAFile:        "testdata/root.pem",
+			ClientCAFile:        caPath,
 			AllowedNames:        []string{"kube-aggregator"},
 		},
 		ServiceAccounts: &ServiceAccountAuthenticationOptions{
@@ -283,12 +307,13 @@ func TestToAuthenticationConfig(t *testing.T) {
 		TokenFile: &TokenFileAuthenticationOptions{
 			TokenFile: "/testTokenFile",
 		},
+		APIAudiences:         authenticator.Audiences(nil),
 		TokenSuccessCacheTTL: 10 * time.Second,
 		TokenFailureCacheTTL: 0,
 	}
 
 	expectConfig := kubeauthenticator.Config{
-		APIAudiences:            authenticator.Audiences{"http://foo.bar.com"},
+		APIAudiences:            nil,
 		Anonymous:               false,
 		BootstrapToken:          false,
 		ClientCAContentProvider: nil, // this is nil because you can't compare functions
@@ -309,15 +334,17 @@ func TestToAuthenticationConfig(t *testing.T) {
 				},
 			},
 		},
-		OIDCSigningAlgs:             []string{"RS256"},
-		WebhookTokenAuthnConfigFile: "/token-webhook-config",
-		WebhookTokenAuthnCacheTTL:   180000000000,
+		OIDCSigningAlgs:           []string{"RS256"},
+		WebhookHost:               "https://webhook.example",
+		WebhookAPIPath:            "/apis/authentication",
+		WebhookTokenAuthnCacheTTL: 180000000000,
 
 		TokenSuccessCacheTTL: 10 * time.Second,
 		TokenFailureCacheTTL: 0,
 
 		RequestHeaderConfig: &authenticatorfactory.RequestHeaderConfig{
 			UsernameHeaders:     headerrequest.StaticStringSlice{"x-remote-user"},
+			UIDHeaders:          headerrequest.StaticStringSlice(nil),
 			GroupHeaders:        headerrequest.StaticStringSlice{"x-remote-group"},
 			ExtraHeaderPrefixes: headerrequest.StaticStringSlice{"x-remote-extra-"},
 			CAContentProvider:   nil, // this is nil because you can't compare functions
@@ -325,7 +352,7 @@ func TestToAuthenticationConfig(t *testing.T) {
 		},
 	}
 
-	fileBytes, err := os.ReadFile("testdata/root.pem")
+	fileBytes, err := os.ReadFile(caPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -370,7 +397,8 @@ func TestBuiltInAuthenticationOptionsAddFlags(t *testing.T) {
 		"--service-account-issuer=http://foo.bar.com",
 		"--service-account-jwks-uri=https://qux.com",
 		"--token-auth-file=tokenfile",
-		"--authentication-token-webhook-config-file=webhook_config.yaml",
+		"--authentication-token-webhook-host=https://webhook.example",
+		"--authentication-token-webhook-apipath=/apis/authentication",
 		"--authentication-token-webhook-cache-ttl=180s",
 	}
 
@@ -410,9 +438,10 @@ func TestBuiltInAuthenticationOptionsAddFlags(t *testing.T) {
 			TokenFile: "tokenfile",
 		},
 		WebHook: &WebHookAuthenticationOptions{
-			ConfigFile: "webhook_config.yaml",
-			Version:    "v1beta1",
-			CacheTTL:   180 * time.Second,
+			Host:     "https://webhook.example",
+			APIPath:  "/apis/authentication",
+			Version:  "v1beta1",
+			CacheTTL: 180 * time.Second,
 			RetryBackoff: &wait.Backoff{
 				Duration: 500 * time.Millisecond,
 				Factor:   1.5,
@@ -704,7 +733,7 @@ func TestValidateOIDCOptions(t *testing.T) {
 			args: []string{
 				"--authentication-config=configfile",
 			},
-			expectErr: "set --feature-gates=StructuredAuthenticationConfiguration=true to use authentication-config file",
+			expectErr: "",
 		},
 		{
 			name: "authentication-config file, --oidc-issuer-url is set",
@@ -806,7 +835,6 @@ func TestValidateOIDCOptions(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			defer featuregatetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.StructuredAuthenticationConfiguration, tt.structuredAuthenticationConfigEnabled)()
 
 			opts := NewBuiltInAuthenticationOptions().WithOIDC()
 			pf := pflag.NewFlagSet("test-builtin-authentication-opts", pflag.ContinueOnError)

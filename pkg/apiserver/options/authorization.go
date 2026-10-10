@@ -18,12 +18,11 @@ package options
 
 import (
 	"fmt"
+	authorizationcel "k8s.io/apiserver/pkg/authorization/cel"
 	"strings"
 	"time"
 
 	"k8s.io/apiserver/pkg/apis/apiserver/load"
-	genericfeatures "k8s.io/apiserver/pkg/features"
-	utilfeature "k8s.io/apiserver/pkg/util/feature"
 
 	"github.com/spf13/pflag"
 
@@ -115,9 +114,6 @@ func (o *BuiltInAuthorizationOptions) Validate() []error {
 	//	- the config file can be loaded
 	//	- the config file represents a valid configuration
 	if o.AuthorizationConfigurationFile != "" {
-		if !utilfeature.DefaultFeatureGate.Enabled(genericfeatures.StructuredAuthorizationConfiguration) {
-			return append(allErrors, fmt.Errorf("--%s cannot be used without enabling StructuredAuthorizationConfiguration feature flag", authorizationConfigFlag))
-		}
 
 		// error out if legacy flags are defined
 		if o.AreLegacyFlagsSet != nil && o.AreLegacyFlagsSet() {
@@ -131,9 +127,9 @@ func (o *BuiltInAuthorizationOptions) Validate() []error {
 		}
 
 		// validate the file and return any error
-		if errors := validation.ValidateAuthorizationConfiguration(nil, config,
-			sets.NewString(authzmodes.AuthorizationModeChoices...),
-			sets.NewString(repeatableAuthorizerTypes...),
+		if errors := validation.ValidateAuthorizationConfiguration(authorizationcel.NewDefaultCompiler(), nil, config,
+			sets.New(authzmodes.AuthorizationModeChoices...),
+			sets.New(repeatableAuthorizerTypes...),
 		); len(errors) != 0 {
 			allErrors = append(allErrors, errors.ToAggregate().Errors()...)
 		}
@@ -265,9 +261,6 @@ func (o *BuiltInAuthorizationOptions) ToAuthorizationConfig() (*authorizer.Confi
 	// else,
 	//	- build the AuthorizationConfig from the legacy flags
 	if o.AuthorizationConfigurationFile != "" {
-		if !utilfeature.DefaultFeatureGate.Enabled(genericfeatures.StructuredAuthorizationConfiguration) {
-			return nil, fmt.Errorf("--%s cannot be used without enabling StructuredAuthorizationConfiguration feature flag", authorizationConfigFlag)
-		}
 
 		// error out if legacy flags are defined
 		if o.AreLegacyFlagsSet != nil && o.AreLegacyFlagsSet() {
@@ -281,11 +274,11 @@ func (o *BuiltInAuthorizationOptions) ToAuthorizationConfig() (*authorizer.Confi
 		}
 
 		// validate the file and return any error
-		if errors := validation.ValidateAuthorizationConfiguration(nil, authorizationConfiguration,
-			sets.NewString(authzmodes.AuthorizationModeChoices...),
-			sets.NewString(repeatableAuthorizerTypes...),
+		if errors := validation.ValidateAuthorizationConfiguration(authorizationcel.NewDefaultCompiler(), nil, authorizationConfiguration,
+			sets.New(authzmodes.AuthorizationModeChoices...),
+			sets.New(repeatableAuthorizerTypes...),
 		); len(errors) != 0 {
-			return nil, fmt.Errorf(errors.ToAggregate().Error())
+			return nil, errors.ToAggregate()
 		}
 	} else {
 		authorizationConfiguration, err = o.buildAuthorizationConfiguration()

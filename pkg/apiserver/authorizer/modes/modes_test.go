@@ -26,7 +26,8 @@ func TestIsValidAuthorizationMode(t *testing.T) {
 		{"", false},
 		{"rBAC", false},        // not supported
 		{"falsy value", false}, // not supported
-		{"RBAC", true},         // supported
+		{"RBAC", false},        // delegated business authorization is outside the donor mode set
+		{"Node", false},        // unsupported donor mode
 		{"ABAC", true},         // supported
 		{"Webhook", true},      // supported
 		{"AlwaysAllow", true},  // supported

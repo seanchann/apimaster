@@ -19,6 +19,7 @@ package authorizer
 import (
 	"errors"
 	"fmt"
+	authorizationcel "k8s.io/apiserver/pkg/authorization/cel"
 	"time"
 
 	"github.com/seanchann/apimaster/pkg/apiserver/authorizer/modes"
@@ -125,6 +126,9 @@ func (config Config) New() (authorizer.Authorizer, authorizer.RuleResolver, erro
 				*config.WebhookRetryBackoff,
 				decisionOnError,
 				configuredAuthorizer.Webhook.MatchConditions,
+				configuredAuthorizer.Name,
+				authorizerfactory.NewDelegatingAuthorizerMetrics(),
+				authorizationcel.NewDefaultCompiler(),
 			)
 			if err != nil {
 				return nil, nil, err
@@ -139,5 +143,10 @@ func (config Config) New() (authorizer.Authorizer, authorizer.RuleResolver, erro
 		}
 	}
 
-	return union.New(authorizers...), union.NewRuleResolvers(ruleResolvers...), nil
+	namedAuthorizers := make([]union.NamedAuthorizer, 0, len(authorizers))
+	for i, handler := range authorizers {
+		namedAuthorizers = append(namedAuthorizers, union.NamedAuthorizer{AuthorizerName: fmt.Sprintf("apimaster-%d", i), Authorizer: handler})
+	}
+	combined, err := union.New(namedAuthorizers...)
+	return combined, union.NewRuleResolvers(ruleResolvers...), err
 }

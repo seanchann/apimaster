@@ -19,7 +19,7 @@
 package informers
 
 import (
-	"fmt"
+	fmt "fmt"
 
 	v1 "github.com/seanchann/apimaster/pkg/apis/coreres/v1"
 	rbacv1 "github.com/seanchann/apimaster/pkg/apis/rbac/v1"

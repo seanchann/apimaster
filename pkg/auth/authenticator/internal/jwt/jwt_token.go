@@ -106,7 +106,7 @@ func (ja *JWTAuth) Validate(token string) *SessionInfo {
 	})
 
 	if err != nil {
-		klog.Errorf("validate token(%s) failed(%v)", token, err)
+		klog.V(3).Info("token validation failed")
 		return nil
 	}
 

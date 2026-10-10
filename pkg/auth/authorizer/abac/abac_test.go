@@ -325,7 +325,7 @@ func TestRulesFor(t *testing.T) {
 			User:      &tc.User,
 			Namespace: tc.Namespace,
 		}
-		resourceRules, nonResourceRules, _, _ := a.RulesFor(attr.GetUser(), attr.GetNamespace())
+		resourceRules, nonResourceRules, _, _ := a.RulesFor(context.Background(), attr.GetUser(), attr.GetNamespace())
 		actualResourceRules := getResourceRules(resourceRules)
 		if !reflect.DeepEqual(tc.ExpectResourceRules, actualResourceRules) {
 			t.Logf("tc: %v -> attr %v", tc, attr)

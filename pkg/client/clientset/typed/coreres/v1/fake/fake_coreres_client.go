@@ -29,7 +29,7 @@ type FakeCoreresV1 struct {
 }
 
 func (c *FakeCoreresV1) Namespaces() v1.NamespaceInterface {
-	return &FakeNamespaces{c}
+	return newFakeNamespaces(c)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

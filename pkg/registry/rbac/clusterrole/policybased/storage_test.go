@@ -37,7 +37,7 @@ func TestEscalation(t *testing.T) {
 	createContext := request.WithRequestInfo(request.WithNamespace(context.TODO(), ""), &request.RequestInfo{
 		IsResourceRequest: true,
 		Verb:              "create",
-		APIGroup:          "rbac.authorization.k8s.io",
+		APIGroup:          rbac.GroupName,
 		APIVersion:        "v1",
 		Resource:          "clusterroles",
 		Name:              "",
@@ -45,7 +45,7 @@ func TestEscalation(t *testing.T) {
 	updateContext := request.WithRequestInfo(request.WithNamespace(context.TODO(), ""), &request.RequestInfo{
 		IsResourceRequest: true,
 		Verb:              "update",
-		APIGroup:          "rbac.authorization.k8s.io",
+		APIGroup:          rbac.GroupName,
 		APIVersion:        "v1",
 		Resource:          "clusterroles",
 		Name:              "myrole",
@@ -69,7 +69,7 @@ func TestEscalation(t *testing.T) {
 		nil,
 		nil,
 		[]*rbacv1.ClusterRole{{ObjectMeta: metav1.ObjectMeta{Name: "alice-role"}, Rules: []rbacv1.PolicyRule{{APIGroups: []string{"*"}, Resources: []string{"*"}, Verbs: []string{"*"}}}}},
-		[]*rbacv1.ClusterRoleBinding{{RoleRef: rbacv1.RoleRef{Name: "alice-role", APIGroup: "rbac.authorization.k8s.io", Kind: "ClusterRole"}, Subjects: []rbacv1.Subject{{Name: "alice", Kind: "User", APIGroup: "rbac.authorization.k8s.io"}}}},
+		[]*rbacv1.ClusterRoleBinding{{RoleRef: rbacv1.RoleRef{Name: "alice-role", APIGroup: rbac.GroupName, Kind: "ClusterRole"}, Subjects: []rbacv1.Subject{{Name: "alice", Kind: "User", APIGroup: rbac.GroupName}}}},
 	)
 
 	role := &rbac.ClusterRole{

@@ -25,7 +25,7 @@ import (
 // Interface provides access to all the informers in this group version.
 type Interface interface {
 	// Namespaces returns a NamespaceInformer.
-	Namespaces() NamespaceInformer
+	Namespaces() TypedNamespaceInformer
 }
 
 type version struct {
@@ -39,7 +39,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// Namespaces returns a NamespaceInformer.
-func (v *version) Namespaces() NamespaceInformer {
+// Namespaces returns a TypedNamespaceInformer.
+func (v *version) Namespaces() TypedNamespaceInformer {
 	return &namespaceInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }

@@ -19,10 +19,10 @@
 package v1
 
 import (
-	v1 "github.com/seanchann/apimaster/pkg/apis/coreres/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/tools/cache"
+	coreresv1 "github.com/seanchann/apimaster/pkg/apis/coreres/v1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // NamespaceLister helps list Namespaces.
@@ -30,39 +30,19 @@ import (
 type NamespaceLister interface {
 	// List lists all Namespaces in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.Namespace, err error)
+	List(selector labels.Selector) (ret []*coreresv1.Namespace, err error)
 	// Get retrieves the Namespace from the index for a given name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1.Namespace, error)
+	Get(name string) (*coreresv1.Namespace, error)
 	NamespaceListerExpansion
 }
 
 // namespaceLister implements the NamespaceLister interface.
 type namespaceLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*coreresv1.Namespace]
 }
 
 // NewNamespaceLister returns a new NamespaceLister.
 func NewNamespaceLister(indexer cache.Indexer) NamespaceLister {
-	return &namespaceLister{indexer: indexer}
-}
-
-// List lists all Namespaces in the indexer.
-func (s *namespaceLister) List(selector labels.Selector) (ret []*v1.Namespace, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1.Namespace))
-	})
-	return ret, err
-}
-
-// Get retrieves the Namespace from the index for a given name.
-func (s *namespaceLister) Get(name string) (*v1.Namespace, error) {
-	obj, exists, err := s.indexer.GetByKey(name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1.Resource("namespace"), name)
-	}
-	return obj.(*v1.Namespace), nil
+	return &namespaceLister{listers.New[*coreresv1.Namespace](indexer, coreresv1.Resource("namespace"))}
 }

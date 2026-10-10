@@ -1,221 +1,42 @@
 #!/usr/bin/env bash
-#
-# check you installed the following tools:
-#  GOPROXY=off go install k8s.io/code-generator/cmd/deepcopy-gen
-#  GOPROXY=off go install k8s.io/code-generator/cmd/defaulter-gen
-#  GOPROXY=off go install k8s.io/code-generator/cmd/conversion-gen
-#  GOPROXY=off go install k8s.io/code-generator/cmd/client-gen
-#  GOPROXY=off go install k8s.io/code-generator/cmd/lister-gen
-#  GOPROXY=off go install k8s.io/code-generator/cmd/informer-gen
-#  GOPROXY=off go install k8s.io/code-generator/cmd/openapi-gen
-
-
-
-set -o errexit
-set -o nounset
-set -o pipefail
-
-unameOut="$(uname -s)"
-case "${unameOut}" in
-    Linux*)     machine=Linux;;
-    Darwin*)    machine=Mac;;
-    CYGWIN*)    machine=Cygwin;;
-    MINGW*)     machine=MinGw;;
-    *)          machine="UNKNOWN:${unameOut}"
-esac
-
-READLINK=readlink
-if [ "$machine" = "Mac" ];then
-  READLINK=greadlink
-fi
-CURRENT_DIR=`dirname $($READLINK -f $0)`
-SCRIPT_ROOT=${CURRENT_DIR%%/hack}
-
-
-# This tool wants a different default than usual.
-VERBOSE="${VERBOSE:-1}"
-BOILERPLATE_FILENAME=${SCRIPT_ROOT}/hack/boilerplate.go.txt
-GENERATED_FILE_PREFIX="${GENERATED_FILE_PREFIX:-zz_generated.}"
-OUT_DIR="output"
-
-CLIENT_OUTPUT_DIR=${SCRIPT_ROOT}/pkg/client
-CLIENT_OUTPUT_PKG="github.com/seanchann/apimaster/pkg/client"
-
-CLIENTSET_OUTPUT_DIR=${CLIENT_OUTPUT_DIR}
-CLIENTSET_OUTPUT_PKG=${CLIENT_OUTPUT_PKG}
-CLIENTSET_VERSIONED_OUTPUT_PKG=${CLIENTSET_OUTPUT_PKG}/clientset
-
-LISTERS_OUTPUT_DIR=${CLIENT_OUTPUT_DIR}/listers
-LISTERS_OUTPUT_PKG=${CLIENT_OUTPUT_PKG}/listers
-
-INFORMERS_OUTPUT_DIR=${CLIENT_OUTPUT_DIR}/informers
-INFORMERS_OUTPUT_PKG=${CLIENT_OUTPUT_PKG}/informers
-
-if [ ! -d "${OUT_DIR}" ]; then
-  mkdir -p "${OUT_DIR}"
-fi
-
-
-function set_tag_pkgs() {
-  local apis_pkg=${SCRIPT_ROOT}/pkg/apis/
-
-  gv_dirs=()
-  gv_dirs+=("coreres/v1")
-  gv_dirs+=("rbac/v1")
-
-  tag_pkgs=()
-  for pkg in "${gv_dirs[@]}"; do
-    tag_pkgs+=("${apis_pkg}/${pkg}")
-  done
-
-  tag_pkgs_internal=()
-  for pkg in "${gv_dirs[@]}"; do
-    local internal_pkg=${pkg%%/*}
-    tag_pkgs_internal+=("${apis_pkg}/${internal_pkg}")
-  done
-
-  apimachinery_pkgs=()
-  apimachinery_pkgs+=("k8s.io/apimachinery/pkg/apis/meta/v1")
-  apimachinery_pkgs+=("k8s.io/apimachinery/pkg/version")
-  apimachinery_pkgs+=("k8s.io/apimachinery/pkg/runtime")
-  apimachinery_pkgs+=("k8s.io/apimachinery/pkg/util/intstr")
-}
-
-function codegen_deepcopy() {
-  set_tag_pkgs
-  for pkg in "${tag_pkgs_internal[@]}"; do
-    tag_pkgs+=("$pkg")
-  done
-
-  # The result file, in each pkg, of defaulter generation.
-  local output_file="${GENERATED_FILE_PREFIX}deepcopy.go"
-
-
-  deepcopy-gen \
-    --go-header-file ${BOILERPLATE_FILENAME} \
-    --output-file ${output_file} \
-    "${tag_pkgs[@]}"
-}
-
-function codegen_defaults() {
-  set_tag_pkgs
-  
-  # The result file, in each pkg, of defaulter generation.
-  local output_file="${GENERATED_FILE_PREFIX}defaults.go"
-
-  defaulter-gen \
-    --go-header-file ${BOILERPLATE_FILENAME} \
-    --output-file ${output_file} \
-    "${tag_pkgs[@]}"
-}
-
-function codegen_conversions() {
-  set_tag_pkgs
-
-  # The result file, in each pkg, of conversion generation.
-  local output_file="${GENERATED_FILE_PREFIX}conversion.go"
-
-  local extra_peer_pkgs=(
-  )
-
-  # this for if you have extra peer packages
-  # conversion-gen \
-  #   -v "${VERBOSE}" \
-  #   --go-header-file "${BOILERPLATE_FILENAME}" \
-  #   --output-file "${output_file}" \
-  #   $(printf -- " --extra-peer-dirs %s" "${extra_peer_pkgs[@]}") \
-  #   "${tag_pkgs[@]}" \
-  #   "$@"
-
-  conversion-gen \
-    -v "${VERBOSE}" \
-    --go-header-file "${BOILERPLATE_FILENAME}" \
-    --output-file "${output_file}" \
-    "${tag_pkgs[@]}" \
-    "$@"
-}
-
-function codegen_clients() {
-  set_tag_pkgs
-
-  client-gen \
-    -v "${VERBOSE}" \
-    --go-header-file "${BOILERPLATE_FILENAME}" \
-    --output-dir "${CLIENTSET_OUTPUT_DIR}" \
-    --output-pkg="${CLIENTSET_OUTPUT_PKG}" \
-    --clientset-name="clientset" \
-    --input-base="${SCRIPT_ROOT}/pkg/apis" \
-    $(printf -- " --input %s" "${gv_dirs[@]}") \
-    "$@"
-}
-
-function codegen_listers() {
-
-  local ext_apis=()
-  set_tag_pkgs
-  for pkg in "${tag_pkgs[@]}"; do
-    ext_apis+=("$pkg")
-  done
-
-  lister-gen \
-      -v "${VERBOSE}" \
-      --go-header-file "${BOILERPLATE_FILENAME}" \
-      --output-dir "${LISTERS_OUTPUT_DIR}" \
-      --output-pkg "${LISTERS_OUTPUT_PKG}" \
-      "${ext_apis[@]}" \
-      "$@"
-}
-
-function codegen_informers() {
-  local ext_apis=()
-  set_tag_pkgs
-  for pkg in "${tag_pkgs[@]}"; do
-    ext_apis+=("$pkg")
-  done
-
-  informer-gen \
-    -v "${VERBOSE}" \
-    --go-header-file "${BOILERPLATE_FILENAME}" \
-    --output-dir "${INFORMERS_OUTPUT_DIR}" \
-    --output-pkg "${INFORMERS_OUTPUT_PKG}" \
-    --single-directory \
-    --versioned-clientset-package "${CLIENTSET_VERSIONED_OUTPUT_PKG}" \
-    --listers-package "${LISTERS_OUTPUT_PKG}" \
-    "${ext_apis[@]}" \
-    "$@"
-}
-
-
-function codegen_openapi() {
-  set_tag_pkgs
-  for pkg in "${apimachinery_pkgs[@]}"; do
-    tag_pkgs+=("$pkg")
-  done
-  
-
-  # The result file, in each pkg, of open-api generation.
-  local output_file="${GENERATED_FILE_PREFIX}openapi.go"
-
-  local output_dir="pkg/generated/openapi"
-  local output_pkg="github.com/seanchann/apimaster/${output_dir}"
-  local report_file="${OUT_DIR}/api_violations.report"
-
-  openapi-gen \
-    -v "${VERBOSE}" \
-    --go-header-file "${BOILERPLATE_FILENAME}" \
-    --output-file "${output_file}" \
-    --output-dir "${output_dir}" \
-    --output-pkg "${output_pkg}" \
-    --report-filename "${report_file}" \
-    "${tag_pkgs[@]}" \
-    "$@"
-}
-
-codegen_deepcopy
-codegen_defaults
-codegen_conversions
-codegen_openapi
-
-codegen_clients
-codegen_listers
-codegen_informers
+# Generate the retained API marker closure with the repository's pinned tools.
+set -euo pipefail
+SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export GOTOOLCHAIN=go1.27.2
+CODEGEN_BIN="${APIMASTER_CODEGEN_BIN_DIR:-/tmp/easehold-upstream-storage/apimaster-codegen/bin}"
+"$SCRIPT_ROOT/hack/tools/install-dep.sh"
+cd "$SCRIPT_ROOT"
+BOILERPLATE="$SCRIPT_ROOT/hack/boilerplate.go.txt"
+MODULE="github.com/seanchann/apimaster"
+REPORT_DIR="${APIMASTER_CODEGEN_REPORT_DIR:-/tmp/easehold-upstream-storage/apimaster-codegen/reports}"
+mkdir -p "$REPORT_DIR"
+versioned=("$MODULE/pkg/apis/coreres/v1" "$MODULE/pkg/apis/rbac/v1")
+abac=("$MODULE/pkg/apis/abac/v0" "$MODULE/pkg/apis/abac/v1beta1")
+internal=("$MODULE/pkg/apis/coreres" "$MODULE/pkg/apis/rbac" "$MODULE/pkg/apis/abac")
+common=(--go-header-file "$BOILERPLATE")
+"$CODEGEN_BIN/deepcopy-gen" "${common[@]}" --output-file zz_generated.deepcopy.go "${versioned[@]}" "${abac[@]}" "${internal[@]}"
+"$CODEGEN_BIN/defaulter-gen" "${common[@]}" --output-file zz_generated.defaults.go "${versioned[@]}" "${abac[@]}"
+"$CODEGEN_BIN/conversion-gen" "${common[@]}" --output-file zz_generated.conversion.go "${versioned[@]}" "${abac[@]}"
+"$CODEGEN_BIN/openapi-gen" "${common[@]}" --output-file zz_generated.openapi.go --output-dir "$SCRIPT_ROOT/pkg/generated/openapi" --output-pkg "$MODULE/pkg/generated/openapi" --report-filename "$REPORT_DIR/api_violations.report" "${versioned[@]}" "$MODULE/pkg/apis/abac/v1beta1" k8s.io/apimachinery/pkg/apis/meta/v1 k8s.io/apimachinery/pkg/version k8s.io/apimachinery/pkg/runtime k8s.io/apimachinery/pkg/util/intstr
+"$CODEGEN_BIN/client-gen" "${common[@]}" --output-dir "$SCRIPT_ROOT/pkg/client" --output-pkg "$MODULE/pkg/client" --clientset-name clientset --input-base "$MODULE/pkg/apis" --input coreres/v1,rbac/v1
+"$CODEGEN_BIN/lister-gen" "${common[@]}" --output-dir "$SCRIPT_ROOT/pkg/client/listers" --output-pkg "$MODULE/pkg/client/listers" "${versioned[@]}"
+"$CODEGEN_BIN/informer-gen" "${common[@]}" --output-dir "$SCRIPT_ROOT/pkg/client/informers" --output-pkg "$MODULE/pkg/client/informers" --single-directory --versioned-clientset-package "$MODULE/pkg/client/clientset" --listers-package "$MODULE/pkg/client/listers" "${versioned[@]}"
+# Generators prepend build constraints. Keep the Apache template first without changing generated bodies.
+python3 - "$SCRIPT_ROOT" <<'PYHEADER'
+import re
+import sys
+from pathlib import Path
+root=Path(sys.argv[1])
+for directory in ('pkg/apis','pkg/client','pkg/generated/openapi'):
+    for file in (root/directory).rglob('*.go'):
+        text=file.read_text()
+        if 'Code generated' not in text:
+            continue
+        match=re.match(r'((?://(?:go:build| \+build)[^\n]*\n)+)\n(/\*.*?\*/)(.*)',text,re.S)
+        if match:
+            constraints='\n'.join(line for line in match[1].splitlines() if line.startswith('//go:build '))+'\n'
+            text=match[2]+'\n\n'+constraints+'\n'+match[3].lstrip('\n')
+            file.write_text(text)
+        if not text.startswith('/*'):
+            raise SystemExit(f'generated license must be first: {file}')
+PYHEADER

@@ -17,6 +17,7 @@ limitations under the License.
 package authenticator
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -91,6 +92,11 @@ type Config struct {
 // New returns an authenticator.Request or an error that supports the standard
 // Kubernetes authentication mechanisms.
 func (config Config) New() (authenticator.Request, *spec.SecurityDefinitions, spec3.SecuritySchemes, error) {
+	return config.NewWithContext(context.Background())
+}
+
+// NewWithContext binds OIDC discovery and refresh work to the server lifecycle.
+func (config Config) NewWithContext(lifecycleContext context.Context) (authenticator.Request, *spec.SecurityDefinitions, spec3.SecuritySchemes, error) {
 	var authenticators []authenticator.Request
 	var tokenAuthenticators []authenticator.Token
 	securityDefinitionsV2 := spec.SecurityDefinitions{}
@@ -103,6 +109,7 @@ func (config Config) New() (authenticator.Request, *spec.SecurityDefinitions, sp
 			config.RequestHeaderConfig.CAContentProvider.VerifyOptions,
 			config.RequestHeaderConfig.AllowedClientNames,
 			config.RequestHeaderConfig.UsernameHeaders,
+			config.RequestHeaderConfig.UIDHeaders,
 			config.RequestHeaderConfig.GroupHeaders,
 			config.RequestHeaderConfig.ExtraHeaderPrefixes,
 		)
@@ -158,7 +165,7 @@ func (config Config) New() (authenticator.Request, *spec.SecurityDefinitions, sp
 					return nil, nil, nil, oidcCAError
 				}
 			}
-			oidcAuth, err := oidc.New(oidc.Options{
+			oidcAuth, err := oidc.New(lifecycleContext, oidc.Options{
 				JWTAuthenticator:     jwtAuthenticator,
 				CAContentProvider:    oidcCAContent,
 				SupportedSigningAlgs: config.OIDCSigningAlgs,
@@ -208,7 +215,7 @@ func (config Config) New() (authenticator.Request, *spec.SecurityDefinitions, sp
 
 	if len(authenticators) == 0 {
 		if config.Anonymous {
-			return anonymous.NewAuthenticator(), &securityDefinitionsV2, securitySchemesV3, nil
+			return anonymous.NewAuthenticator(nil), &securityDefinitionsV2, securitySchemesV3, nil
 		}
 		return nil, &securityDefinitionsV2, securitySchemesV3, nil
 	}
@@ -220,7 +227,7 @@ func (config Config) New() (authenticator.Request, *spec.SecurityDefinitions, sp
 	if config.Anonymous {
 		// If the authenticator chain returns an error, return an error (don't consider a bad bearer token
 		// or invalid username/password combination anonymous).
-		authenticator = union.NewFailOnError(authenticator, anonymous.NewAuthenticator())
+		authenticator = union.NewFailOnError(authenticator, anonymous.NewAuthenticator(nil))
 	}
 
 	return authenticator, &securityDefinitionsV2, securitySchemesV3, nil

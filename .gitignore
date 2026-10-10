@@ -1,1 +1,9 @@
 output/
+
+# Keep the pinned generation delivery files visible despite global /hack exclusions.
+!hack/
+!hack/tools/
+!hack/tools/go.mod
+!hack/tools/go.sum
+!hack/tools/install-dep.sh
+!hack/verify-codegen.sh

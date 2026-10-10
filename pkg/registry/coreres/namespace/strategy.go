@@ -31,7 +31,7 @@ import (
 	"k8s.io/apiserver/pkg/registry/generic"
 	apistorage "k8s.io/apiserver/pkg/storage"
 	"k8s.io/apiserver/pkg/storage/names"
-	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
+	"sigs.k8s.io/structured-merge-diff/v7/fieldpath"
 )
 
 // namespaceStrategy implements behavior for Namespaces
@@ -130,7 +130,7 @@ func (namespaceStrategy) Canonicalize(obj runtime.Object) {
 }
 
 // AllowCreateOnUpdate is false for namespaces.
-func (namespaceStrategy) AllowCreateOnUpdate() bool {
+func (namespaceStrategy) AllowCreateOnUpdate(context.Context) bool {
 	return false
 }
 
@@ -145,7 +145,7 @@ func (namespaceStrategy) WarningsOnUpdate(ctx context.Context, obj, old runtime.
 	return nil
 }
 
-func (namespaceStrategy) AllowUnconditionalUpdate() bool {
+func (namespaceStrategy) AllowUnconditionalUpdate(context.Context) bool {
 	return true
 }
 

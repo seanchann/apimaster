@@ -44,7 +44,7 @@ func (l *LoginApi) Login(req *restful.Request, resp *restful.Response) {
 
 	respBody, err := l.loginHook.Login(loginCheck)
 	if err != nil {
-		resp.WriteErrorString(http.StatusForbidden, loginErr.Status())
+		resp.WriteErrorString(http.StatusUnauthorized, loginErr.Status())
 		return
 	}
 

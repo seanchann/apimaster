@@ -17,8 +17,10 @@ limitations under the License.
 package options
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	authenticationcel "k8s.io/apiserver/pkg/authentication/cel"
 	"net/url"
 	"os"
 	"strings"
@@ -36,11 +38,9 @@ import (
 	"k8s.io/apiserver/pkg/apis/apiserver/install"
 	apiservervalidation "k8s.io/apiserver/pkg/apis/apiserver/validation"
 	"k8s.io/apiserver/pkg/authentication/authenticator"
-	genericfeatures "k8s.io/apiserver/pkg/features"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/apiserver/pkg/server/egressselector"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
-	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/klog/v2"
 	openapicommon "k8s.io/kube-openapi/pkg/common"
@@ -528,7 +528,7 @@ func (o *BuiltInAuthenticationOptions) ToAuthenticationConfig() (kubeauthenticat
 	}
 
 	if ret.AuthenticationConfig != nil {
-		if err := apiservervalidation.ValidateAuthenticationConfiguration(ret.AuthenticationConfig).ToAggregate(); err != nil {
+		if err := apiservervalidation.ValidateAuthenticationConfiguration(authenticationcel.NewDefaultCompiler(), ret.AuthenticationConfig, nil).ToAggregate(); err != nil {
 			return kubeauthenticator.Config{}, err
 		}
 	}
@@ -578,6 +578,13 @@ func (o *BuiltInAuthenticationOptions) ToAuthenticationConfig() (kubeauthenticat
 
 // ApplyTo requires already applied OpenAPIConfig and EgressSelector if present.
 func (o *BuiltInAuthenticationOptions) ApplyTo(authInfo *genericapiserver.AuthenticationInfo,
+	secureServing *genericapiserver.SecureServingInfo, egressSelector *egressselector.EgressSelector,
+	openAPIConfig *openapicommon.Config, openAPIV3Config *openapicommon.OpenAPIV3Config) error {
+	return o.ApplyToWithContext(context.Background(), authInfo, secureServing, egressSelector, openAPIConfig, openAPIV3Config)
+}
+
+// ApplyToWithContext applies authentication with bounded server lifecycle ownership.
+func (o *BuiltInAuthenticationOptions) ApplyToWithContext(lifecycleContext context.Context, authInfo *genericapiserver.AuthenticationInfo,
 	secureServing *genericapiserver.SecureServingInfo, egressSelector *egressselector.EgressSelector,
 	openAPIConfig *openapicommon.Config, openAPIV3Config *openapicommon.OpenAPIV3Config) error {
 	if o == nil {
@@ -638,9 +645,8 @@ func (o *BuiltInAuthenticationOptions) ApplyTo(authInfo *genericapiserver.Authen
 	}
 
 	// var openAPIV3SecuritySchemes spec3.SecuritySchemes
-	authenticator, openAPIV2SecurityDefinitions, openAPIV3SecuritySchemes, err := authenticatorConfig.New()
+	authenticator, openAPIV2SecurityDefinitions, openAPIV3SecuritySchemes, err := authenticatorConfig.NewWithContext(lifecycleContext)
 	if err != nil {
-		fmt.Println("error creating authenticator: ", err)
 		return err
 	}
 	authInfo.Authenticator = authenticator
@@ -678,11 +684,6 @@ func (o *BuiltInAuthenticationOptions) validateOIDCOptions() []error {
 	}
 
 	// New validation when authentication config file is provided
-
-	// Authentication config file is only supported when the StructuredAuthenticationConfiguration feature is enabled
-	if !utilfeature.DefaultFeatureGate.Enabled(genericfeatures.StructuredAuthenticationConfiguration) {
-		allErrors = append(allErrors, fmt.Errorf("set --feature-gates=%s=true to use authentication-config file", genericfeatures.StructuredAuthenticationConfiguration))
-	}
 
 	// Authentication config file and oidc-* flags are mutually exclusive
 	if o.OIDC != nil && o.OIDC.areFlagsConfigured() {

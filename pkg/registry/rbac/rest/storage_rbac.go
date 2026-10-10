@@ -19,6 +19,7 @@ package rest
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"k8s.io/klog/v2"
@@ -48,6 +49,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
 	"k8s.io/apiserver/pkg/registry/generic"
+	genericregistry "k8s.io/apiserver/pkg/registry/generic/registry"
 	"k8s.io/apiserver/pkg/registry/rest"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	serverstorage "k8s.io/apiserver/pkg/server/storage"
@@ -81,23 +83,37 @@ func (p RESTStorageProvider) NewRESTStorage(apiResourceConfigSource serverstorag
 
 func (p RESTStorageProvider) storage(version schema.GroupVersion, apiResourceConfigSource serverstorage.APIResourceConfigSource, restOptionsGetter generic.RESTOptionsGetter) (map[string]rest.Storage, error) {
 	storage := map[string]rest.Storage{}
+	owners := []*genericregistry.Store{}
+	transferred := false
+	defer func() {
+		if !transferred {
+			for _, owner := range owners {
+				owner.Destroy()
+			}
+		}
+	}()
 
 	rolesStorage, err := rolestore.NewREST(restOptionsGetter)
 	if err != nil {
 		return storage, err
 	}
+	owners = append(owners, rolesStorage.Store)
 	roleBindingsStorage, err := rolebindingstore.NewREST(restOptionsGetter)
 	if err != nil {
 		return storage, err
 	}
+	owners = append(owners, roleBindingsStorage.Store)
 	clusterRolesStorage, err := clusterrolestore.NewREST(restOptionsGetter)
 	if err != nil {
 		return storage, err
 	}
+	owners = append(owners, clusterRolesStorage.Store)
 	clusterRoleBindingsStorage, err := clusterrolebindingstore.NewREST(restOptionsGetter)
 	if err != nil {
 		return storage, err
 	}
+
+	owners = append(owners, clusterRoleBindingsStorage.Store)
 
 	authorizationRuleResolver := rbacregistryvalidation.NewDefaultRuleResolver(
 		role.AuthorizerAdapter{Registry: role.NewRegistry(rolesStorage)},
@@ -126,6 +142,29 @@ func (p RESTStorageProvider) storage(version schema.GroupVersion, apiResourceCon
 		storage[resource] = clusterrolebindingpolicybased.NewStorage(clusterRoleBindingsStorage, p.Authorizer, authorizationRuleResolver)
 	}
 
+	if len(storage) == 0 {
+		return storage, nil
+	}
+	// Policy wrappers need all resolver stores, including disabled resources.
+	// Capture native callbacks before replacement to avoid recursive destruction.
+	destroyFunctions := make([]func(), 0, len(owners))
+	for _, owner := range owners {
+		destroyFunctions = append(destroyFunctions, owner.DestroyFunc)
+	}
+	var destroyOnce sync.Once
+	destroyAll := func() {
+		destroyOnce.Do(func() {
+			for _, destroy := range destroyFunctions {
+				if destroy != nil {
+					destroy()
+				}
+			}
+		})
+	}
+	for _, owner := range owners {
+		owner.DestroyFunc = destroyAll
+	}
+	transferred = true
 	return storage, nil
 }
 

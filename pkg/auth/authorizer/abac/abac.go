@@ -235,7 +235,7 @@ func (pl policyList) Authorize(ctx context.Context, a authorizer.Attributes) (au
 	// Then, add Caching only if needed.
 }
 
-func (pl policyList) RulesFor(user user.Info, namespace string) ([]authorizer.ResourceRuleInfo, []authorizer.NonResourceRuleInfo, bool, error) {
+func (pl policyList) RulesFor(ctx context.Context, user user.Info, namespace string) ([]authorizer.ResourceRuleInfo, []authorizer.NonResourceRuleInfo, bool, error) {
 	var (
 		resourceRules    []authorizer.ResourceRuleInfo
 		nonResourceRules []authorizer.NonResourceRuleInfo
@@ -272,4 +272,14 @@ func getVerbs(isReadOnly bool) []string {
 		return []string{"get", "list", "watch"}
 	}
 	return []string{"*"}
+}
+
+// ConditionsAwareAuthorize preserves the unconditional ABAC decision.
+func (pl policyList) ConditionsAwareAuthorize(ctx context.Context, attrs authorizer.Attributes) authorizer.ConditionsAwareDecision {
+	return authorizer.ConditionsAwareDecisionFromParts(pl.Authorize(ctx, attrs))
+}
+
+// EvaluateConditions fails closed because ABAC does not issue conditional decisions.
+func (pl policyList) EvaluateConditions(context.Context, authorizer.ConditionsAwareDecision, authorizer.ConditionsData) (authorizer.Decision, string, error) {
+	return authorizer.DecisionDeny, "", authorizer.ErrorConditionEvaluationNotSupported
 }
