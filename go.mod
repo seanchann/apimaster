@@ -34,7 +34,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
-	github.com/mattn/go-sqlite3 v1.14.19 // indirect
+	github.com/mattn/go-sqlite3 v1.14.52 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.24.0 // indirect
@@ -95,7 +95,7 @@ require (
 	golang.org/x/sys v0.48.0
 	k8s.io/api v0.0.0-20261009022248-31d6f3932eb5
 	k8s.io/apimachinery v0.0.0-20261009021810-830a138b85ad
-	k8s.io/apiserver v0.0.0-20261010055350-0769f73cefe6
+	k8s.io/apiserver v0.0.0-20261026105344-f09a713aee80
 	k8s.io/client-go v0.0.0-20261009022909-199455b69899
 	k8s.io/cluster-bootstrap v0.0.0-20261009034448-ccfb6cba326f
 	k8s.io/component-base v0.0.0-20261009024433-39b8712093c1
@@ -106,4 +106,4 @@ require (
 	sigs.k8s.io/structured-merge-diff/v7 v7.0.0
 )
 
-replace k8s.io/apiserver => github.com/seanchann/apiserver v0.0.0-20261010055350-0769f73cefe6
+replace k8s.io/apiserver => github.com/seanchann/apiserver v0.0.0-20261026105344-f09a713aee80
