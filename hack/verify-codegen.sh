@@ -17,7 +17,7 @@
 
 set -euo pipefail
 SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-export GOTOOLCHAIN=go1.27.2
+export GOTOOLCHAIN=local
 TEMPORARY_PARENT="${APIMASTER_CODEGEN_TMPDIR:-/tmp/easehold-upstream-storage}"
 mkdir -p "$TEMPORARY_PARENT"
 VERIFY_ROOT="$(mktemp -d "$TEMPORARY_PARENT/apimaster-verify.XXXXXX")"

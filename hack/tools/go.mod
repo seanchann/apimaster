@@ -1,6 +1,6 @@
 module github.com/seanchann/apimaster/hack/tools
 
-go 1.27.2
+go 1.27.0
 
 require (
 	k8s.io/code-generator v0.37.1

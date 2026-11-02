@@ -1,6 +1,6 @@
 module github.com/seanchann/apimaster
 
-go 1.27.2
+go 1.27.0
 
 require (
 	cel.dev/expr v0.25.2 // indirect

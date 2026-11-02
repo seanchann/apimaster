@@ -17,7 +17,7 @@
 
 set -euo pipefail
 TOOLS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export GOTOOLCHAIN=go1.27.2
+export GOTOOLCHAIN=local
 export GOWORK=off
 export GOBIN="${APIMASTER_CODEGEN_BIN_DIR:-/tmp/easehold-upstream-storage/apimaster-codegen/bin}"
 mkdir -p "$GOBIN"
